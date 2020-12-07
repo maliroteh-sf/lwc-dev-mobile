@@ -12,7 +12,7 @@ import { performance, PerformanceObserver } from 'perf_hooks';
 import { AndroidVirtualDevice } from '../../../../../../common/AndroidTypes';
 import { AndroidSDKUtils } from '../../../../../../common/AndroidUtils';
 import { CommandLineUtils } from '../../../../../../common/Common';
-import { IOSSimulatorDevice } from '../../../../../../common/IOSTypes';
+import { IOSDevice } from '../../../../../../common/IOSTypes';
 import { IOSUtils } from '../../../../../../common/IOSUtils';
 import { LoggerSetup } from '../../../../../../common/LoggerSetup';
 import { PerformanceMarkers } from '../../../../../../common/PerformanceMarkers';
@@ -68,9 +68,9 @@ export default class List extends SfdxCommand {
         });
     }
 
-    public async iOSDeviceList(): Promise<IOSSimulatorDevice[]> {
+    public async iOSDeviceList(): Promise<IOSDevice[]> {
         performance.mark(this.perfMarker.startMarkName);
-        const result = await IOSUtils.getSupportedSimulators();
+        const result = await IOSUtils.getSupportedDevices();
         performance.mark(this.perfMarker.endMarkName);
         this.showDeviceList(result);
         return result;
@@ -78,7 +78,7 @@ export default class List extends SfdxCommand {
 
     public async androidDeviceList(): Promise<AndroidVirtualDevice[]> {
         performance.mark(this.perfMarker.startMarkName);
-        const result = await AndroidSDKUtils.fetchEmulators();
+        const result = await AndroidSDKUtils.getSupportedDevices();
         performance.mark(this.perfMarker.endMarkName);
         this.showDeviceList(result);
         return result;

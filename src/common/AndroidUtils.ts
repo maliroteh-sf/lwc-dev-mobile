@@ -6,15 +6,12 @@
  */
 import { Logger } from '@salesforce/core';
 import * as childProcess from 'child_process';
+import cli from 'cli-ux';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import androidConfig from '../config/androidconfig.json';
-import {
-    AndroidPackage,
-    AndroidPackages,
-    AndroidVirtualDevice
-} from './AndroidTypes';
+import { AndroidDevice, AndroidPackage, AndroidPackages } from './AndroidTypes';
 import { Version } from './Common';
 import { CommonUtils } from './CommonUtils';
 import { LaunchArgument } from './PreviewConfigFile';
@@ -79,6 +76,7 @@ export class AndroidSDKUtils {
         AndroidSDKUtils.sdkManagerCommand = undefined;
         AndroidSDKUtils.sdkRoot = undefined;
         AndroidSDKUtils.packageCache = new AndroidPackages();
+        AndroidSDKUtils.supportedAndroidDevices = undefined;
     }
 
     public static async androidSDKPrerequisitesCheck(): Promise<string> {
@@ -180,22 +178,55 @@ export class AndroidSDKUtils {
         return Promise.resolve(AndroidSDKUtils.packageCache);
     }
 
-    public static fetchEmulators(): Promise<AndroidVirtualDevice[]> {
-        return new Promise((resolve, reject) => {
-            let devices: AndroidVirtualDevice[] = [];
+    public static getSupportedDevices(): Promise<AndroidDevice[]> {
+        if (AndroidSDKUtils.supportedAndroidDevices) {
+            return Promise.resolve(AndroidSDKUtils.supportedAndroidDevices);
+        }
+
+        let emulatorsString = '';
+        let devicesString = '';
+
+        try {
+            emulatorsString = AndroidSDKUtils.executeCommand(
+                AndroidSDKUtils.getAvdManagerCommand() + ' list avd'
+            );
+        } catch (exception) {
+            AndroidSDKUtils.logger.warn(exception);
+        }
+
+        try {
+            devicesString = AndroidSDKUtils.executeCommand(
+                AndroidSDKUtils.getAdbShellCommand() + ' devices -l'
+            );
+        } catch (exception) {
+            AndroidSDKUtils.logger.warn(exception);
+        }
+
+        AndroidSDKUtils.supportedAndroidDevices = AndroidDevice.parseRawString(
+            emulatorsString,
+            devicesString
+        );
+
+        return Promise.resolve(AndroidSDKUtils.supportedAndroidDevices);
+    }
+
+    public static async getDevice(
+        deviceName: string
+    ): Promise<AndroidDevice | null> {
+        return new Promise(async (resolve, reject) => {
             try {
-                const result = AndroidSDKUtils.executeCommand(
-                    AndroidSDKUtils.getAvdManagerCommand() + ' list avd'
-                );
-                if (result) {
-                    devices = AndroidVirtualDevice.parseRawString(
-                        result.toString()
-                    );
+                const devices = await AndroidSDKUtils.getSupportedDevices();
+                for (const device of devices) {
+                    if (deviceName.match(device.name)) {
+                        return resolve(device);
+                    }
                 }
             } catch (exception) {
                 AndroidSDKUtils.logger.warn(exception);
             }
-            return resolve(devices);
+
+            AndroidSDKUtils.logger.info(`Unable to find device: ${deviceName}`);
+            return resolve(null);
         });
     }
 
@@ -315,7 +346,7 @@ export class AndroidSDKUtils {
         });
     }
 
-    public static hasEmulator(emulatorName: string): Promise<boolean> {
+    /*public static hasEmulator(emulatorName: string): Promise<boolean> {
         return new Promise((resolve, reject) => {
             try {
                 const stdout = AndroidSDKUtils.executeCommand(
@@ -331,7 +362,7 @@ export class AndroidSDKUtils {
             }
             return resolve(false);
         });
-    }
+    }*/
 
     public static async createNewVirtualDevice(
         emulatorName: string,
@@ -437,14 +468,20 @@ export class AndroidSDKUtils {
 
     public static launchURLIntent(
         url: string,
-        emulatorPort: number
+        deviceName: string
     ): Promise<boolean> {
-        const openUrlCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s emulator-${emulatorPort} shell am start -a android.intent.action.VIEW -d ${url}`;
+        const openUrlCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s ${deviceName} shell am start -a android.intent.action.VIEW -d ${url}`;
         return new Promise((resolve, reject) => {
             try {
+                cli.action.start(
+                    'OpenUrl',
+                    `* Opening URL ${url} on ${deviceName}`
+                );
                 AndroidSDKUtils.executeCommand(openUrlCommand);
+                cli.action.start('OpenUrl', `* Opening URL done`);
                 resolve(true);
             } catch (error) {
+                cli.action.stop(`*** Error: ${error}`);
                 reject(error);
             }
         });
@@ -457,16 +494,21 @@ export class AndroidSDKUtils {
         targetApp: string,
         targetAppArguments: LaunchArgument[],
         launchActivity: string,
-        emulatorPort: number
+        deviceName: string
     ): Promise<boolean> {
         try {
             if (appBundlePath && appBundlePath.trim().length > 0) {
                 AndroidSDKUtils.logger.info(
-                    `Installing app ${appBundlePath.trim()} to emulator`
+                    `Installing app ${appBundlePath.trim()} to ${deviceName}`
                 );
                 const pathQuote = process.platform === WINDOWS_OS ? '"' : "'";
-                const installCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s emulator-${emulatorPort} install -r -t ${pathQuote}${appBundlePath.trim()}${pathQuote}`;
+                const installCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s ${deviceName} install -r -t ${pathQuote}${appBundlePath.trim()}${pathQuote}`;
+                cli.action.start(
+                    'Launching',
+                    `* Installing app ${appBundlePath.trim()} to ${deviceName}`
+                );
                 AndroidSDKUtils.executeCommand(installCommand);
+                cli.action.start('Launching', `* Installing done`);
             }
 
             let launchArgs =
@@ -478,19 +520,25 @@ export class AndroidSDKUtils {
             });
 
             const launchCommand =
-                `${AndroidSDKUtils.getAdbShellCommand()} -s emulator-${emulatorPort}` +
+                `${AndroidSDKUtils.getAdbShellCommand()} -s ${deviceName}` +
                 ` shell am start -S -n "${targetApp}/${launchActivity}"` +
                 ' -a android.intent.action.MAIN' +
                 ' -c android.intent.category.LAUNCHER' +
                 ` ${launchArgs}`;
 
             AndroidSDKUtils.logger.info(
-                `Relaunching app ${targetApp} in emulator`
+                `Launching app ${targetApp} on ${deviceName}`
+            );
+            cli.action.start(
+                'Launching',
+                `* Launching app ${targetApp} on ${deviceName}`
             );
             AndroidSDKUtils.executeCommand(launchCommand);
+            cli.action.start('Launching', `* Launching done`);
 
             return Promise.resolve(true);
         } catch (error) {
+            cli.action.stop(`*** Error: ${error}`);
             return Promise.reject(error);
         }
     }
@@ -627,6 +675,7 @@ export class AndroidSDKUtils {
     private static adbShellCommand: string | undefined;
     private static sdkManagerCommand: string | undefined;
     private static sdkRoot: AndroidSDKRoot | undefined;
+    private static supportedAndroidDevices: AndroidDevice[] | undefined;
 
     private static getEmulatorCommand(): string {
         if (!AndroidSDKUtils.emulatorCommand) {

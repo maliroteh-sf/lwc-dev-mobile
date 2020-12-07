@@ -7,12 +7,12 @@
 import * as Config from '@oclif/config';
 import { Logger, SfdxError } from '@salesforce/core';
 import { AndroidVirtualDevice } from '../../../../../../../common/AndroidTypes';
-import { IOSSimulatorDevice } from '../../../../../../../common/IOSTypes';
+import { IOSDevice } from '../../../../../../../common/IOSTypes';
 import Setup from '../../setup';
 import List from '../list';
 
 const iOSListCommandBlockMock = jest.fn(
-    (): Promise<IOSSimulatorDevice[]> => {
+    (): Promise<IOSDevice[]> => {
         return Promise.resolve([]);
     }
 );

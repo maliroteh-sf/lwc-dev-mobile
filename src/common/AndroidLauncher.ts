@@ -6,15 +6,16 @@
  */
 import cli from 'cli-ux';
 import androidConfig from '../config/androidconfig.json';
+import { AndroidDeviceType } from './AndroidTypes';
 import { AndroidSDKUtils } from './AndroidUtils';
 import { AndroidAppPreviewConfig, LaunchArgument } from './PreviewConfigFile';
 import { PreviewUtils } from './PreviewUtils';
 
 export class AndroidLauncher {
-    private emulatorName: string;
+    private deviceName: string;
 
-    constructor(emulatorName: string) {
-        this.emulatorName = emulatorName;
+    constructor(deviceName: string) {
+        this.deviceName = deviceName;
     }
 
     public async launchPreview(
@@ -24,81 +25,109 @@ export class AndroidLauncher {
         targetApp: string,
         appConfig: AndroidAppPreviewConfig | undefined
     ): Promise<boolean> {
-        const preferredPack = await AndroidSDKUtils.findRequiredEmulatorImages();
-        const emuImage = preferredPack.platformEmulatorImage || 'default';
-        const androidApi = preferredPack.platformAPI;
-        const abi = preferredPack.abi;
-        const device = androidConfig.supportedDevices[0];
-        let requestedPort = await AndroidSDKUtils.getNextAndroidAdbPort();
         const spinner = cli.action;
-        // need to incr by 2, one for console port and next for adb
-        requestedPort =
-            requestedPort < androidConfig.defaultAdbPort
-                ? androidConfig.defaultAdbPort
-                : requestedPort + 2;
-        const emuName = this.emulatorName;
-        spinner.start(`Launching`, `Searching for ${emuName}`, {
+        spinner.start(`Launching`, `Searching for device ${this.deviceName}`, {
             stdout: true
         });
-        return AndroidSDKUtils.hasEmulator(emuName)
-            .then((result) => {
-                if (!result) {
-                    spinner.start(`Launching`, `Creating device ${emuName}`, {
+
+        try {
+            let currentDevice = await AndroidSDKUtils.getDevice(
+                this.deviceName
+            );
+
+            if (!currentDevice || currentDevice.name.length === 0) {
+                spinner.start(
+                    `Launching`,
+                    `Device not found. Creating device ${this.deviceName}`,
+                    {
                         stdout: true
-                    });
-                    return AndroidSDKUtils.createNewVirtualDevice(
-                        emuName,
-                        emuImage,
-                        androidApi,
-                        device,
-                        abi
-                    ).then((resolve) => true);
-                }
-                spinner.start(`Launching`, `Found device ${emuName}`, {
-                    stdout: true
-                });
-                return true;
-            })
-            .then((resolve) => {
-                spinner.start(`Launching`, `Starting device ${emuName}`, {
-                    stdout: true
-                });
-                return AndroidSDKUtils.startEmulator(emuName, requestedPort);
-            })
-            .then(async (actualPort) => {
-                spinner.start(`Launching`, `Waiting for ${emuName} to boot`, {
-                    stdout: true
-                });
-                await AndroidSDKUtils.pollDeviceStatus(actualPort);
-
-                if (PreviewUtils.isTargetingBrowser(targetApp)) {
-                    const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
-                    const url = `http://10.0.2.2:3333/lwc/preview/${compPath}`;
-                    spinner.stop(`Opening Browser with url ${url}`);
-                    return AndroidSDKUtils.launchURLIntent(url, actualPort);
+                    }
+                );
+                const preferredPack = await AndroidSDKUtils.findRequiredEmulatorImages();
+                AndroidSDKUtils.createNewVirtualDevice(
+                    this.deviceName,
+                    preferredPack.platformEmulatorImage || 'default',
+                    preferredPack.platformAPI,
+                    androidConfig.supportedDevices[0],
+                    preferredPack.abi
+                );
+                currentDevice = await AndroidSDKUtils.getDevice(
+                    this.deviceName
+                );
+                if (!currentDevice) {
+                    throw new Error(
+                        `Unable to create device ${this.deviceName}`
+                    );
                 } else {
-                    spinner.stop(`Launching App ${targetApp}`);
-
-                    const launchActivity =
-                        (appConfig && appConfig.activity) || '';
-
-                    const targetAppArguments: LaunchArgument[] =
-                        (appConfig && appConfig.launch_arguments) || [];
-                    return AndroidSDKUtils.launchNativeApp(
-                        compName,
-                        projectDir,
-                        appBundlePath,
-                        targetApp,
-                        targetAppArguments,
-                        launchActivity,
-                        actualPort
+                    spinner.start(
+                        `Launching`,
+                        `Created device ${this.deviceName}`,
+                        {
+                            stdout: true
+                        }
                     );
                 }
-            })
-            .catch((error) => {
-                spinner.stop('Error encountered during launch');
-                throw error;
-            });
+            } else {
+                spinner.start(`Launching`, `Found device ${this.deviceName}`, {
+                    stdout: true
+                });
+            }
+
+            if (currentDevice.deviceType === AndroidDeviceType.Emulator) {
+                spinner.start(
+                    `Launching`,
+                    `Starting device ${currentDevice.name}`,
+                    {
+                        stdout: true
+                    }
+                );
+                let requestedPort = await AndroidSDKUtils.getNextAndroidAdbPort();
+                // need to incr by 2, one for console port and next for adb
+                requestedPort =
+                    requestedPort < androidConfig.defaultAdbPort
+                        ? androidConfig.defaultAdbPort
+                        : requestedPort + 2;
+                const actualPort = await AndroidSDKUtils.startEmulator(
+                    this.deviceName,
+                    requestedPort
+                );
+
+                spinner.start(
+                    `Launching`,
+                    `Waiting for device to boot: ${currentDevice.name}`,
+                    {
+                        stdout: true
+                    }
+                );
+                await AndroidSDKUtils.pollDeviceStatus(actualPort);
+            }
+
+            if (PreviewUtils.isTargetingBrowser(targetApp)) {
+                const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
+                const url = `http://192.168.1.10:3333/lwc/preview/${compPath}`;
+                spinner.stop(`Opening Browser with url ${url}`);
+                return AndroidSDKUtils.launchURLIntent(url, currentDevice.name);
+            } else {
+                spinner.stop(`Launching App ${targetApp}`);
+
+                const launchActivity = (appConfig && appConfig.activity) || '';
+
+                const targetAppArguments: LaunchArgument[] =
+                    (appConfig && appConfig.launch_arguments) || [];
+                return AndroidSDKUtils.launchNativeApp(
+                    compName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    targetAppArguments,
+                    launchActivity,
+                    currentDevice.name
+                );
+            }
+        } catch (error) {
+            spinner.stop('Error encountered during launch');
+            return Promise.reject(error);
+        }
     }
 }
 

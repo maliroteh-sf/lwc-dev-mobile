@@ -6,6 +6,7 @@
         "name": "LWC Test App",
         "get_app_bundle": "configure_ios_test_app.ts",
         "launch_arguments": [
+          { "name": "serverAddress", "value": "192.168.1.10:3333" },
           { "name": "ShowDebugInfoToggleButton", "value": "true" },
           { "name": "username", "value": "Astro" }
         ]
@@ -18,6 +19,7 @@
         "get_app_bundle": "configure_android_test_app.ts",
         "activity": ".MainActivity",
         "launch_arguments": [
+          { "name": "serverAddress", "value": "192.168.1.10:3333" },
           { "name": "ShowDebugInfoToggleButton", "value": "true" },
           { "name": "username", "value": "Astro" }
         ]

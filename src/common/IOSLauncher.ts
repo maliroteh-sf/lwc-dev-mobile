@@ -7,16 +7,17 @@
 import childProcess from 'child_process';
 import cli from 'cli-ux';
 import util from 'util';
+import { IOSDevice, IOSDeviceType } from './IOSTypes';
 import { IOSUtils } from './IOSUtils';
 import { IOSAppPreviewConfig, LaunchArgument } from './PreviewConfigFile';
 import { PreviewUtils } from './PreviewUtils';
 const exec = util.promisify(childProcess.exec);
 
 export class IOSLauncher {
-    private simulatorName: string;
+    private deviceName: string;
 
-    constructor(simulatorName: string) {
-        this.simulatorName = simulatorName;
+    constructor(deviceName: string) {
+        this.deviceName = deviceName;
     }
 
     public async launchPreview(
@@ -26,80 +27,94 @@ export class IOSLauncher {
         targetApp: string,
         appConfig: IOSAppPreviewConfig | undefined
     ): Promise<boolean> {
-        const availableDevices: string[] = await IOSUtils.getSupportedDevices();
-        const supportedRuntimes: string[] = await IOSUtils.getSupportedRuntimes();
-        const currentSimulator = await IOSUtils.getSimulator(
-            this.simulatorName
-        );
-        const currentSimulatorUDID: string | null =
-            currentSimulator && currentSimulator.udid;
-        let deviceUDID = '';
         const spinner = cli.action;
-        cli.action.start(`Launching`, `Searching for ${this.simulatorName}`, {
+        spinner.start(`Launching`, `Searching for device ${this.deviceName}`, {
             stdout: true
         });
-        if (!currentSimulatorUDID || currentSimulatorUDID.length === 0) {
-            spinner.start(
-                `Launching`,
-                `Creating device ${this.simulatorName}`,
-                {
-                    stdout: true
-                }
-            );
-            deviceUDID = await IOSUtils.createNewDevice(
-                this.simulatorName,
-                availableDevices[0],
-                supportedRuntimes[0]
-            );
-            spinner.start(`Launching`, `Created device ${this.simulatorName}`, {
-                stdout: true
-            });
-        } else {
-            spinner.start(`Launching`, `Found device ${this.simulatorName}`, {
-                stdout: true
-            });
-            deviceUDID = currentSimulatorUDID;
-        }
 
-        return IOSUtils.launchSimulatorApp()
-            .then(() => {
-                spinner.start(`Launching`, `Starting device ${deviceUDID}`, {
-                    stdout: true
-                });
-                return IOSUtils.bootDevice(deviceUDID);
-            })
-            .then(() => {
+        try {
+            let currentDevice = await IOSUtils.getDevice(this.deviceName);
+            if (!currentDevice || currentDevice.udid.length === 0) {
                 spinner.start(
                     `Launching`,
-                    `Waiting for device ${deviceUDID} to boot`,
+                    `Device not found. Creating device ${this.deviceName}`,
                     {
                         stdout: true
                     }
                 );
-                return IOSUtils.waitUntilDeviceIsReady(deviceUDID);
-            })
-            .then(() => {
-                if (PreviewUtils.isTargetingBrowser(targetApp)) {
-                    const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
-                    const url = `http://localhost:3333/lwc/preview/${compPath}`;
-                    return IOSUtils.launchURLInBootedSimulator(deviceUDID, url);
+                const availableSimulators: IOSDevice[] = await IOSUtils.getSupportedSimulators();
+                const supportedRuntimes: string[] = await IOSUtils.getSupportedRuntimes();
+                await IOSUtils.createNewDevice(
+                    this.deviceName,
+                    availableSimulators[0].name.replace(/ /gi, '-'),
+                    `iOS-${supportedRuntimes[0].replace(/\./gi, '-')}`
+                );
+                currentDevice = await IOSUtils.getDevice(this.deviceName);
+                if (!currentDevice) {
+                    throw new Error(
+                        `Unable to create device ${this.deviceName}`
+                    );
                 } else {
-                    const targetAppArguments: LaunchArgument[] =
-                        (appConfig && appConfig.launch_arguments) || [];
-                    return IOSUtils.launchAppInBootedSimulator(
-                        deviceUDID,
-                        compName,
-                        projectDir,
-                        appBundlePath,
-                        targetApp,
-                        targetAppArguments
+                    spinner.start(
+                        `Launching`,
+                        `Created device ${this.deviceName}`,
+                        {
+                            stdout: true
+                        }
                     );
                 }
-            })
-            .catch((error) => {
-                spinner.stop('Error encountered during launch');
-                throw error;
-            });
+            } else {
+                spinner.start(`Launching`, `Found device ${this.deviceName}`, {
+                    stdout: true
+                });
+            }
+
+            if (currentDevice.deviceType === IOSDeviceType.Simulator) {
+                spinner.start(
+                    `Launching`,
+                    `Starting device ${currentDevice.name} (${currentDevice.udid})`,
+                    {
+                        stdout: true
+                    }
+                );
+                await IOSUtils.launchSimulatorApp();
+
+                spinner.start(
+                    `Launching`,
+                    `Waiting for device to boot: ${currentDevice.name} (${currentDevice.udid})`,
+                    {
+                        stdout: true
+                    }
+                );
+                await IOSUtils.bootDevice(currentDevice.udid);
+                await IOSUtils.waitUntilDeviceIsReady(currentDevice.udid);
+            }
+
+            if (PreviewUtils.isTargetingBrowser(targetApp)) {
+                const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
+                const url = `http://localhost:3333/lwc/preview/${compPath}`;
+                spinner.stop(`Opening Browser with url ${url}`);
+                return IOSUtils.launchURLInBootedSimulator(
+                    currentDevice.udid,
+                    url
+                );
+            } else {
+                const targetAppArguments: LaunchArgument[] =
+                    (appConfig && appConfig.launch_arguments) || [];
+                spinner.stop(`Launching App ${targetApp}`);
+                return IOSUtils.launchAppOnDevice(
+                    currentDevice,
+                    compName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    targetAppArguments
+                );
+            }
+        } catch (error) {
+            spinner.stop('Error encountered during launch');
+            return Promise.reject(error);
+        }
     }
 }
 

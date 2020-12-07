@@ -13,7 +13,8 @@ import WebKit
 fileprivate let NAMESPACE = "com.salesforce.mobile-tooling"
 fileprivate let COMPONENT_NAME_ARG_PREFIX = "\(NAMESPACE).componentname"
 fileprivate let PROJECT_DIR_ARG_PREFIX = "\(NAMESPACE).projectdir"
-fileprivate let PREVIEW_URL_PREFIX = "http://localhost:3333/lwc/preview/"
+fileprivate let DEFAULT_LOCALHOST = "http://localhost:3333"
+fileprivate let SERVER_ADDRESS_ARG = "serverAddress"
 fileprivate let DEBUG_ARG = "ShowDebugInfoToggleButton"
 fileprivate let USERNAME_ARG = "username"
 
@@ -35,6 +36,10 @@ class ViewController: UIViewController, WKNavigationDelegate {
         let isDebugEnabled = getIsDebugEnabled(self.launchArguments)
         let username = getUsername(self.launchArguments)
         let requestUrl = username.isEmpty ? URL(string: "\(componentUrl)") : URL(string: "\(componentUrl)?username=\(username)")
+        var envVariables = "ENVIRONMENT VARIABLES:\n\n"
+        for (key, value) in ProcessInfo.processInfo.environment {
+            envVariables += "\(key)=\(value)\n";
+        }
         
         if (isDebugEnabled) {
             // If ShowDebugInfoToggleButton is enabled then configure the button
@@ -50,6 +55,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
             self.debugTextView.text =
                 "RAW LAUNCH PARAMETERS:\n\n" +
                 self.launchArguments.joined(separator: "\n\n") +
+                "\n\n\(envVariables)\n" +
                 "\n\n\n\nRESOLVED URL:" +
                 "\n\n\(requestUrl?.absoluteString ?? "")"
         } else {
@@ -86,10 +92,34 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A string corresponding to the value provided for the component URL in the launch arguments.
     ///   If the component URL is not provided in the launch arguments this method returns an empty string.
     fileprivate func getComponentUrl(_ launchArguments: [String]) -> String {
-        let match = launchArguments.first{$0.hasPrefix(COMPONENT_NAME_ARG_PREFIX)}
+        var match = launchArguments.first{$0.hasPrefix(COMPONENT_NAME_ARG_PREFIX)}
+        if (match == nil) {
+            match = ProcessInfo.processInfo.environment[COMPONENT_NAME_ARG_PREFIX]
+        }
         guard var component = match else {return ""}
         component = component.replacingOccurrences(of: "\(COMPONENT_NAME_ARG_PREFIX)=", with: "")
-        return "\(PREVIEW_URL_PREFIX)\(component)"
+        var serverAddress = getServerAddress(launchArguments);
+        if (serverAddress.isEmpty) {
+            serverAddress = DEFAULT_LOCALHOST
+        } else if (!serverAddress.lowercased().starts(with: "http")) {
+            serverAddress = "http://\(serverAddress)"
+        }
+        return "\(serverAddress)/lwc/preview/\(component)"
+    }
+    
+    /// Attempts at fetching the serverAddress from the provided custom launch arguments.
+    ///
+    /// - Parameter launchArguments: An array of provided launch arguments
+    /// - Returns: A string corresponding to the value provided for the serverAddress in the launch arguments.
+    ///   If the serverAddress is not provided in the launch arguments this method returns an empty string.
+    fileprivate func getServerAddress(_ launchArguments: [String]) -> String {
+        var match = launchArguments.first{$0.hasPrefix(SERVER_ADDRESS_ARG)}
+        if (match == nil) {
+            match = ProcessInfo.processInfo.environment[SERVER_ADDRESS_ARG]
+        }
+        guard var address = match else {return ""}
+        address = address.replacingOccurrences(of: "\(SERVER_ADDRESS_ARG)=", with: "")
+        return address
     }
     
     /// Attempts at fetching the username from the provided custom launch arguments.
@@ -98,7 +128,10 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A string corresponding to the value provided for the username in the launch arguments.
     ///   If the username is not provided in the launch arguments this method returns an empty string.
     fileprivate func getUsername(_ launchArguments: [String]) -> String {
-        let match = launchArguments.first{$0.hasPrefix(USERNAME_ARG)}
+        var match = launchArguments.first{$0.hasPrefix(USERNAME_ARG)}
+        if (match == nil) {
+            match = ProcessInfo.processInfo.environment[USERNAME_ARG]
+        }
         guard var username = match else {return ""}
         username = username.replacingOccurrences(of: "\(USERNAME_ARG)=", with: "")
         return username
@@ -110,7 +143,10 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A boolean corresponding to the value provided for ShowDebugInfoToggleButton in the launch arguments.
     ///   If ShowDebugInfoToggleButton is not provided in the launch arguments this method returns TRUE.
     fileprivate func getIsDebugEnabled(_ launchArguments: [String]) -> Bool {
-        let match = launchArguments.first{$0.hasPrefix(DEBUG_ARG)}
+        var match = launchArguments.first{$0.hasPrefix(DEBUG_ARG)}
+        if (match == nil) {
+            match = ProcessInfo.processInfo.environment[DEBUG_ARG]
+        }
         guard var value = match else {return true}
         value = value.replacingOccurrences(of: "\(DEBUG_ARG)=", with: "")
         return Bool(value) ?? true;

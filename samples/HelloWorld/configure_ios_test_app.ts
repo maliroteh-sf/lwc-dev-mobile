@@ -1,8 +1,8 @@
-import childProcess from "child_process";
+//import childProcess from "child_process";
 import path from "path";
 
 exports.run = function () {
-  const expectedProjectPath = path.resolve(
+  /*const expectedProjectPath = path.resolve(
     __dirname,
     "../apps/ios/LwcTestApp/LwcTestApp.xcodeproj"
   );
@@ -19,5 +19,9 @@ exports.run = function () {
     )
     .toString();
 
-  return expectedCompiledAppPath;
+  return expectedCompiledAppPath;*/
+  return path.resolve(
+    __dirname,
+    "../apps/ios/LwcTestApp/build/Debug-iphoneos/LwcTestApp.app"
+  );
 };
