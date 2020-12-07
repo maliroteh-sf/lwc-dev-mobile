@@ -5,8 +5,8 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 import * as Config from '@oclif/config';
-import { Logger, SfdxError } from '@salesforce/core';
-import { AndroidVirtualDevice } from '../../../../../../../common/AndroidTypes';
+import { Logger } from '@salesforce/core';
+import { AndroidDevice } from '../../../../../../../common/AndroidTypes';
 import { IOSDevice } from '../../../../../../../common/IOSTypes';
 import Setup from '../../setup';
 import List from '../list';
@@ -18,7 +18,7 @@ const iOSListCommandBlockMock = jest.fn(
 );
 
 const androidListCommandBlockMock = jest.fn(
-    (): Promise<AndroidVirtualDevice[]> => {
+    (): Promise<AndroidDevice[]> => {
         return Promise.resolve([]);
     }
 );

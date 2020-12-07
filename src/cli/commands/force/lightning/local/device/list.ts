@@ -9,7 +9,7 @@ import { Logger, Messages, SfdxError } from '@salesforce/core';
 import chalk from 'chalk';
 import cli from 'cli-ux';
 import { performance, PerformanceObserver } from 'perf_hooks';
-import { AndroidVirtualDevice } from '../../../../../../common/AndroidTypes';
+import { AndroidDevice } from '../../../../../../common/AndroidTypes';
 import { AndroidSDKUtils } from '../../../../../../common/AndroidUtils';
 import { CommandLineUtils } from '../../../../../../common/Common';
 import { IOSDevice } from '../../../../../../common/IOSTypes';
@@ -76,7 +76,7 @@ export default class List extends SfdxCommand {
         return result;
     }
 
-    public async androidDeviceList(): Promise<AndroidVirtualDevice[]> {
+    public async androidDeviceList(): Promise<AndroidDevice[]> {
         performance.mark(this.perfMarker.startMarkName);
         const result = await AndroidSDKUtils.getSupportedDevices();
         performance.mark(this.perfMarker.endMarkName);
