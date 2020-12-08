@@ -36,10 +36,6 @@ class ViewController: UIViewController, WKNavigationDelegate {
         let isDebugEnabled = getIsDebugEnabled(self.launchArguments)
         let username = getUsername(self.launchArguments)
         let requestUrl = username.isEmpty ? URL(string: "\(componentUrl)") : URL(string: "\(componentUrl)?username=\(username)")
-        var envVariables = "ENVIRONMENT VARIABLES:\n\n"
-        for (key, value) in ProcessInfo.processInfo.environment {
-            envVariables += "\(key)=\(value)\n";
-        }
         
         if (isDebugEnabled) {
             // If ShowDebugInfoToggleButton is enabled then configure the button
@@ -55,7 +51,6 @@ class ViewController: UIViewController, WKNavigationDelegate {
             self.debugTextView.text =
                 "RAW LAUNCH PARAMETERS:\n\n" +
                 self.launchArguments.joined(separator: "\n\n") +
-                "\n\n\(envVariables)\n" +
                 "\n\n\n\nRESOLVED URL:" +
                 "\n\n\(requestUrl?.absoluteString ?? "")"
         } else {
@@ -92,10 +87,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A string corresponding to the value provided for the component URL in the launch arguments.
     ///   If the component URL is not provided in the launch arguments this method returns an empty string.
     fileprivate func getComponentUrl(_ launchArguments: [String]) -> String {
-        var match = launchArguments.first{$0.hasPrefix(COMPONENT_NAME_ARG_PREFIX)}
-        if (match == nil) {
-            match = ProcessInfo.processInfo.environment[COMPONENT_NAME_ARG_PREFIX]
-        }
+        let match = launchArguments.first{$0.hasPrefix(COMPONENT_NAME_ARG_PREFIX)}
         guard var component = match else {return ""}
         component = component.replacingOccurrences(of: "\(COMPONENT_NAME_ARG_PREFIX)=", with: "")
         var serverAddress = getServerAddress(launchArguments);
@@ -113,10 +105,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A string corresponding to the value provided for the serverAddress in the launch arguments.
     ///   If the serverAddress is not provided in the launch arguments this method returns an empty string.
     fileprivate func getServerAddress(_ launchArguments: [String]) -> String {
-        var match = launchArguments.first{$0.hasPrefix(SERVER_ADDRESS_ARG)}
-        if (match == nil) {
-            match = ProcessInfo.processInfo.environment[SERVER_ADDRESS_ARG]
-        }
+        let match = launchArguments.first{$0.hasPrefix(SERVER_ADDRESS_ARG)}
         guard var address = match else {return ""}
         address = address.replacingOccurrences(of: "\(SERVER_ADDRESS_ARG)=", with: "")
         return address
@@ -128,10 +117,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A string corresponding to the value provided for the username in the launch arguments.
     ///   If the username is not provided in the launch arguments this method returns an empty string.
     fileprivate func getUsername(_ launchArguments: [String]) -> String {
-        var match = launchArguments.first{$0.hasPrefix(USERNAME_ARG)}
-        if (match == nil) {
-            match = ProcessInfo.processInfo.environment[USERNAME_ARG]
-        }
+        let match = launchArguments.first{$0.hasPrefix(USERNAME_ARG)}
         guard var username = match else {return ""}
         username = username.replacingOccurrences(of: "\(USERNAME_ARG)=", with: "")
         return username
@@ -143,10 +129,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
     /// - Returns: A boolean corresponding to the value provided for ShowDebugInfoToggleButton in the launch arguments.
     ///   If ShowDebugInfoToggleButton is not provided in the launch arguments this method returns TRUE.
     fileprivate func getIsDebugEnabled(_ launchArguments: [String]) -> Bool {
-        var match = launchArguments.first{$0.hasPrefix(DEBUG_ARG)}
-        if (match == nil) {
-            match = ProcessInfo.processInfo.environment[DEBUG_ARG]
-        }
+        let match = launchArguments.first{$0.hasPrefix(DEBUG_ARG)}
         guard var value = match else {return true}
         value = value.replacingOccurrences(of: "\(DEBUG_ARG)=", with: "")
         return Bool(value) ?? true;

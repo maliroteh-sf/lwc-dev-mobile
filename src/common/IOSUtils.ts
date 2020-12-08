@@ -278,11 +278,11 @@ export class IOSUtils {
                 ? `${XCRUN_CMD} simctl launch "${
                       device.udid
                   }" '${targetApp}' ${launchArgs.join(' ')}`
-                : `xcrun xctrace record --device ${
+                : `xcrun xctrace record --device '${
                       device.udid
-                  } --template 'Logging' --env ${launchArgs.join(
-                      ' --env '
-                  )} --output ~/app_execution.trace --append-run --launch '${targetApp}'`;
+                  }' --template 'Logging' --output ~/app_execution.trace --append-run --launch -- '${targetApp}' ${launchArgs.join(
+                      ' '
+                  )}`;
 
         cli.action.start(
             'Launching',
