@@ -193,9 +193,9 @@ export class IOSUtils {
 
     public static async launchURLInBootedSimulator(
         udid: string,
-        url: string
+        componentUrl: string
     ): Promise<boolean> {
-        const command = `${XCRUN_CMD} simctl openurl "${udid}" ${url}`;
+        const command = `${XCRUN_CMD} simctl openurl "${udid}" ${componentUrl}`;
         try {
             const { stdout } = await IOSUtils.executeCommand(command);
             return new Promise<boolean>((resolve, reject) => {
@@ -210,7 +210,7 @@ export class IOSUtils {
 
     public static async launchAppOnDevice(
         device: IOSDevice,
-        compName: string,
+        componentUrl: string,
         projectDir: string,
         appBundlePath: string | undefined,
         targetApp: string,
@@ -252,7 +252,7 @@ export class IOSUtils {
         }
 
         const launchArgs: string[] = [
-            `${PreviewUtils.COMPONENT_NAME_ARG_PREFIX}=${compName}`,
+            `${PreviewUtils.COMPONENT_NAME_ARG_PREFIX}=${componentUrl}`,
             `${PreviewUtils.PROJECT_DIR_ARG_PREFIX}=${projectDir}`
         ];
         targetAppArguments.forEach((arg) => {

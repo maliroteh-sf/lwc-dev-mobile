@@ -346,24 +346,6 @@ export class AndroidSDKUtils {
         });
     }
 
-    /*public static hasEmulator(emulatorName: string): Promise<boolean> {
-        return new Promise((resolve, reject) => {
-            try {
-                const stdout = AndroidSDKUtils.executeCommand(
-                    AndroidSDKUtils.getEmulatorCommand() + ' ' + '-list-avds'
-                );
-                const listOfAVDs = stdout
-                    .toString()
-                    .split(os.EOL)
-                    .filter((avd: string) => avd === emulatorName);
-                return resolve(listOfAVDs && listOfAVDs.length > 0);
-            } catch (exception) {
-                AndroidSDKUtils.logger.error(exception);
-            }
-            return resolve(false);
-        });
-    }*/
-
     public static async createNewVirtualDevice(
         emulatorName: string,
         emulatorImage: string,
@@ -467,15 +449,15 @@ export class AndroidSDKUtils {
     }
 
     public static launchURLIntent(
-        url: string,
+        componentUrl: string,
         deviceName: string
     ): Promise<boolean> {
-        const openUrlCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s ${deviceName} shell am start -a android.intent.action.VIEW -d ${url}`;
+        const openUrlCommand = `${AndroidSDKUtils.getAdbShellCommand()} -s ${deviceName} shell am start -a android.intent.action.VIEW -d ${componentUrl}`;
         return new Promise((resolve, reject) => {
             try {
                 cli.action.start(
                     'OpenUrl',
-                    `* Opening URL ${url} on ${deviceName}`
+                    `* Opening URL ${componentUrl} on ${deviceName}`
                 );
                 AndroidSDKUtils.executeCommand(openUrlCommand);
                 cli.action.start('OpenUrl', `* Opening URL done`);
@@ -488,7 +470,7 @@ export class AndroidSDKUtils {
     }
 
     public static launchNativeApp(
-        compName: string,
+        componentUrl: string,
         projectDir: string,
         appBundlePath: string | undefined,
         targetApp: string,
@@ -512,7 +494,7 @@ export class AndroidSDKUtils {
             }
 
             let launchArgs =
-                `--es "${PreviewUtils.COMPONENT_NAME_ARG_PREFIX}" "${compName}"` +
+                `--es "${PreviewUtils.COMPONENT_NAME_ARG_PREFIX}" "${componentUrl}"` +
                 ` --es "${PreviewUtils.PROJECT_DIR_ARG_PREFIX}" "${projectDir}"`;
 
             targetAppArguments.forEach((arg) => {

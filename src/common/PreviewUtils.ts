@@ -12,6 +12,7 @@ import {
     IOSAppPreviewConfig,
     PreviewConfigFile
 } from './PreviewConfigFile';
+import { NetUtils } from './Common';
 
 const NAMESPACE = 'com.salesforce.mobile-tooling';
 
@@ -36,6 +37,21 @@ export class PreviewUtils {
             return compName;
         }
         return 'c/' + compName;
+    }
+
+    public static getComponentUrl(
+        compName: string,
+        isAndroid: boolean
+    ): string {
+        const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
+        const localIPAddresses = NetUtils.getLocalIPAddresses();
+        const localHostAddress = isAndroid ? '10.0.2.2' : 'localhost';
+        let serverAddress =
+            localIPAddresses.length > 0
+                ? localIPAddresses[0]
+                : localHostAddress;
+        const url = `http://${serverAddress}:3333/lwc/preview/${compPath}`;
+        return url;
     }
 
     public static async validateConfigFileWithSchema(

@@ -90,13 +90,12 @@ export class IOSLauncher {
                 await IOSUtils.waitUntilDeviceIsReady(currentDevice.udid);
             }
 
+            const componentUrl = PreviewUtils.getComponentUrl(compName, false);
             if (PreviewUtils.isTargetingBrowser(targetApp)) {
-                const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
-                const url = `http://localhost:3333/lwc/preview/${compPath}`;
-                spinner.stop(`Opening Browser with url ${url}`);
+                spinner.stop(`Opening Browser with url ${componentUrl}`);
                 return IOSUtils.launchURLInBootedSimulator(
                     currentDevice.udid,
-                    url
+                    componentUrl
                 );
             } else {
                 const targetAppArguments: LaunchArgument[] =
@@ -104,7 +103,7 @@ export class IOSLauncher {
                 spinner.stop(`Launching App ${targetApp}`);
                 return IOSUtils.launchAppOnDevice(
                     currentDevice,
-                    compName,
+                    componentUrl,
                     projectDir,
                     appBundlePath,
                     targetApp,

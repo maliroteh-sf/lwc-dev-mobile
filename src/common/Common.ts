@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+import { networkInterfaces } from 'os';
+
 export class MapUtils {
     public static filter<K, V>(
         map: Map<K, V>,
@@ -73,6 +75,25 @@ export class CommandLineUtils {
         } else {
             return defaultValue;
         }
+    }
+}
+
+// tslint:disable-next-line: max-classes-per-file
+export class NetUtils {
+    public static getLocalIPAddresses(): string[] {
+        const results: string[] = [];
+        const nets = networkInterfaces();
+
+        for (const name of Object.keys(nets)) {
+            for (const net of nets[name]) {
+                // skip over non-ipv4 and internal (i.e. 127.0.0.1) addresses
+                if (net.family === 'IPv4' && !net.internal) {
+                    results.push(net.address);
+                }
+            }
+        }
+
+        return results;
     }
 }
 

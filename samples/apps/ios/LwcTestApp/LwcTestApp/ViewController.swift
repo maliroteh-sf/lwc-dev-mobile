@@ -13,8 +13,6 @@ import WebKit
 fileprivate let NAMESPACE = "com.salesforce.mobile-tooling"
 fileprivate let COMPONENT_NAME_ARG_PREFIX = "\(NAMESPACE).componentname"
 fileprivate let PROJECT_DIR_ARG_PREFIX = "\(NAMESPACE).projectdir"
-fileprivate let DEFAULT_LOCALHOST = "http://localhost:3333"
-fileprivate let SERVER_ADDRESS_ARG = "serverAddress"
 fileprivate let DEBUG_ARG = "ShowDebugInfoToggleButton"
 fileprivate let USERNAME_ARG = "username"
 
@@ -90,25 +88,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
         let match = launchArguments.first{$0.hasPrefix(COMPONENT_NAME_ARG_PREFIX)}
         guard var component = match else {return ""}
         component = component.replacingOccurrences(of: "\(COMPONENT_NAME_ARG_PREFIX)=", with: "")
-        var serverAddress = getServerAddress(launchArguments);
-        if (serverAddress.isEmpty) {
-            serverAddress = DEFAULT_LOCALHOST
-        } else if (!serverAddress.lowercased().starts(with: "http")) {
-            serverAddress = "http://\(serverAddress)"
-        }
-        return "\(serverAddress)/lwc/preview/\(component)"
-    }
-    
-    /// Attempts at fetching the serverAddress from the provided custom launch arguments.
-    ///
-    /// - Parameter launchArguments: An array of provided launch arguments
-    /// - Returns: A string corresponding to the value provided for the serverAddress in the launch arguments.
-    ///   If the serverAddress is not provided in the launch arguments this method returns an empty string.
-    fileprivate func getServerAddress(_ launchArguments: [String]) -> String {
-        let match = launchArguments.first{$0.hasPrefix(SERVER_ADDRESS_ARG)}
-        guard var address = match else {return ""}
-        address = address.replacingOccurrences(of: "\(SERVER_ADDRESS_ARG)=", with: "")
-        return address
+        return component
     }
     
     /// Attempts at fetching the username from the provided custom launch arguments.

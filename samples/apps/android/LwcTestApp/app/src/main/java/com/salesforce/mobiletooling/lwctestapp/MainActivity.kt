@@ -23,8 +23,6 @@ class MainActivity : AppCompatActivity() {
     private val namespace = "com.salesforce.mobile-tooling"
     private val componentNameArgPrefix = "$namespace.componentname"
     private val projectDirArgPrefix = "$namespace.projectdir"
-    private val defaultServerAddress = "http://10.0.2.2:3333"
-    private val serverAddressArgPrefix = "serverAddress"
     private val debugArgPrefix = "ShowDebugInfoToggleButton"
     private val usernameArgPrefix = "username"
 
@@ -96,18 +94,7 @@ class MainActivity : AppCompatActivity() {
      * method returns an empty string.
      */
     private fun getComponentUrl(launchArguments: Bundle?): String {
-        val component = launchArguments?.getString(componentNameArgPrefix)
-        var serverAddress = launchArguments?.getString(serverAddressArgPrefix)
-        if (serverAddress == null || serverAddress.isEmpty()) {
-            serverAddress = defaultServerAddress
-        } else if (!serverAddress.toLowerCase().startsWith("http")) {
-            serverAddress = "http://$serverAddress"
-        }
-        return if (component != null) {
-            "$serverAddress/lwc/preview/$component"
-        } else {
-            ""
-        }
+        return launchArguments?.getString(componentNameArgPrefix) ?: ""
     }
 
     /**

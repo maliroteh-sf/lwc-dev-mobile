@@ -52,7 +52,7 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "com.salesforce.mobile-tooling.componentname=c/helloWorld"
+            argument = "com.salesforce.mobile-tooling.componentname=http://localhost:3333/lwc/preview/c/helloWorld"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

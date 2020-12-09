@@ -100,13 +100,17 @@ export class AndroidLauncher {
                     }
                 );
                 await AndroidSDKUtils.pollDeviceStatus(actualPort);
+                // adb refers to devices with their ports (instead of name)
+                currentDevice.name = `emulator-${actualPort}`;
             }
 
+            const componentUrl = PreviewUtils.getComponentUrl(compName, true);
             if (PreviewUtils.isTargetingBrowser(targetApp)) {
-                const compPath = PreviewUtils.prefixRouteIfNeeded(compName);
-                const url = `http://192.168.1.10:3333/lwc/preview/${compPath}`;
-                spinner.stop(`Opening Browser with url ${url}`);
-                return AndroidSDKUtils.launchURLIntent(url, currentDevice.name);
+                spinner.stop(`Opening Browser with url ${componentUrl}`);
+                return AndroidSDKUtils.launchURLIntent(
+                    componentUrl,
+                    currentDevice.name
+                );
             } else {
                 spinner.stop(`Launching App ${targetApp}`);
 
@@ -115,7 +119,7 @@ export class AndroidLauncher {
                 const targetAppArguments: LaunchArgument[] =
                     (appConfig && appConfig.launch_arguments) || [];
                 return AndroidSDKUtils.launchNativeApp(
-                    compName,
+                    componentUrl,
                     projectDir,
                     appBundlePath,
                     targetApp,
