@@ -217,14 +217,19 @@ export class IOSUtils {
         targetAppArguments: LaunchArgument[]
     ): Promise<boolean> {
         if (appBundlePath && appBundlePath.trim().length > 0) {
+            const bundlePath = appBundlePath
+                .trim()
+                .replace(
+                    '$SDK$',
+                    device.deviceType === IOSDeviceType.Device
+                        ? 'iphoneos'
+                        : 'iphonesimulator'
+                );
+
             const installCommand =
                 device.deviceType === IOSDeviceType.Simulator
-                    ? `${XCRUN_CMD} simctl install ${
-                          device.udid
-                      } '${appBundlePath.trim()}'`
-                    : `ideviceinstaller -u ${
-                          device.udid
-                      } -i '${appBundlePath.trim()}'`;
+                    ? `${XCRUN_CMD} simctl install ${device.udid} '${bundlePath}'`
+                    : `ideviceinstaller -u ${device.udid} -i '${bundlePath}'`;
 
             try {
                 IOSUtils.logger.info(
