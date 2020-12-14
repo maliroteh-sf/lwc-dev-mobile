@@ -21,3 +21,27 @@ exports.run = function () {
 
   return `${projectRootPath}/build/Debug-$SDK$/LwcTestApp.app`;
 };
+/*
+REF: https://stackoverflow.com/questions/47718081/universal-framework-binaries-why-build-simulator-and-archive-device
+REF: https://dzone.com/articles/creating-a-universal-framework-in-xcode-9
+
+FRAMEWORK=&lt;framework name&gt;
+​
+BUILD=build
+FRAMEWORK_PATH=$FRAMEWORK.framework
+​
+# iOS
+rm -Rf $FRAMEWORK-iOS/$BUILD
+rm -f $FRAMEWORK-iOS.framework.tar.gz
+​
+xcodebuild archive -project $FRAMEWORK-iOS/$FRAMEWORK-iOS.xcodeproj -scheme $FRAMEWORK -sdk iphoneos SYMROOT=$BUILD
+xcodebuild build -project $FRAMEWORK-iOS/$FRAMEWORK-iOS.xcodeproj -target $FRAMEWORK -sdk iphonesimulator SYMROOT=$BUILD
+​
+cp -RL $FRAMEWORK-iOS/$BUILD/Release-iphoneos $FRAMEWORK-iOS/$BUILD/Release-universal
+cp -RL $FRAMEWORK-iOS/$BUILD/Release-iphonesimulator/$FRAMEWORK_PATH/Modules/$FRAMEWORK.swiftmodule/* $FRAMEWORK-iOS/$BUILD/Release-universal/$FRAMEWORK_PATH/Modules/$FRAMEWORK.swiftmodule
+​
+lipo -create $FRAMEWORK-iOS/$BUILD/Release-iphoneos/$FRAMEWORK_PATH/$FRAMEWORK $FRAMEWORK-iOS/$BUILD/Release-iphonesimulator/$FRAMEWORK_PATH/$FRAMEWORK -output $FRAMEWORK-iOS/$BUILD/Release-universal/$FRAMEWORK_PATH/$FRAMEWORK
+​
+tar -czv -C $FRAMEWORK-iOS/$BUILD/Release-universal -f $FRAMEWORK-iOS.tar.gz $FRAMEWORK_PATH $FRAMEWORK_PATH.dSYM
+
+*/
