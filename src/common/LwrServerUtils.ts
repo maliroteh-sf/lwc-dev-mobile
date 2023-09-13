@@ -133,9 +133,10 @@ export class LwrServerUtils {
     }
 
     public static getModifiedModuleProviders(): ServiceConfig[] {
-        const defaultConfig = normalizeConfig(undefined, {
-            skipCacheDirCreation: true
-        });
+        const defaultConfig = normalizeConfig(
+            { ignoreLwrConfigFile: true },
+            { skipCacheDirCreation: true }
+        );
         const providers = defaultConfig.moduleProviders;
         providers.unshift([
             path.resolve(`${__dirname}/CustomLwcModuleProvider.js`),
