@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
+process.env['SFDX_ENV'] = 'test'; // run sfdx in test mode when running unit tests
 
-import * as Config from '@oclif/config';
-import { Logger, Messages, SfdxError } from '@salesforce/core';
+import { Config } from '@oclif/core/lib/config';
+import { Options } from '@oclif/core/lib/interfaces';
+import { Logger, Messages, SfError } from '@salesforce/core';
 import { AndroidLauncher } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidLauncher';
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
 import { IOSLauncher } from '@salesforce/lwc-dev-mobile-core/lib/common/IOSLauncher';
@@ -17,49 +19,59 @@ import { Preview } from '../preview';
 import { LwrServerUtils } from '../../../../../../common/LwrServerUtils';
 
 Messages.importMessagesDirectory(__dirname);
-const messages = Messages.loadMessages('@salesforce/lwc-dev-mobile', 'preview');
-
-const passedSetupMock = jest.fn(() => {
-    return Promise.resolve();
-});
-
-const failedSetupMock = jest.fn(() => {
-    return Promise.reject(new SfdxError('Mock Failure in tests!'));
-});
-
-const iosLaunchPreview = jest.fn(() => Promise.resolve());
-const androidLaunchPreview = jest.fn(() => Promise.resolve());
-
-const sampleConfigFile = `
-{
-    "apps": {
-    "ios": [
-        {
-            "id": "com.salesforce.test",
-            "name": "Test App",
-            "get_app_bundle": "configure_ios_test_app.ts",
-            "preview_server_enabled": true
-        }
-    ],
-    "android": [
-        {
-            "id": "com.salesforce.test",
-            "name": "Test App",
-            "get_app_bundle": "configure_android_test_app.ts",
-            "activity": ".MainActivity",
-            "preview_server_enabled": true
-        }
-    ]
-    }
-}
-`;
-
-const defaultServerPort = '3000';
 
 describe('Preview Tests', () => {
+    const defaultServerPort = '3000';
+
+    const sampleConfigFile = `
+    {
+        "apps": {
+        "ios": [
+            {
+                "id": "com.salesforce.test",
+                "name": "Test App",
+                "get_app_bundle": "configure_ios_test_app.ts",
+                "preview_server_enabled": true
+            }
+        ],
+        "android": [
+            {
+                "id": "com.salesforce.test",
+                "name": "Test App",
+                "get_app_bundle": "configure_android_test_app.ts",
+                "activity": ".MainActivity",
+                "preview_server_enabled": true
+            }
+        ]
+        }
+    }
+    `;
+
+    const messages = Messages.loadMessages(
+        '@salesforce/lwc-dev-mobile',
+        'preview'
+    );
+
+    let passedSetupMock: jest.Mock<any, [], any>;
+    let failedSetupMock: jest.Mock<any, [], any>;
+    let iosLaunchPreview: jest.Mock<any, [], any>;
+    let androidLaunchPreview: jest.Mock<any, [], any>;
+
     beforeEach(() => {
-        // tslint:disable-next-line: no-empty
-        jest.spyOn(CommonUtils, 'startCliAction').mockImplementation(() => {});
+        passedSetupMock = jest.fn(() => {
+            return Promise.resolve();
+        });
+
+        failedSetupMock = jest.fn(() => {
+            return Promise.reject(new SfError('Mock Failure in tests!'));
+        });
+
+        iosLaunchPreview = jest.fn(() => Promise.resolve());
+        androidLaunchPreview = jest.fn(() => Promise.resolve());
+
+        passedSetupMock = jest.fn(() => {
+            return Promise.resolve();
+        });
 
         jest.spyOn(LwrServerUtils, 'startLwrServer').mockImplementation(() =>
             Promise.resolve(defaultServerPort)
@@ -89,7 +101,7 @@ describe('Preview Tests', () => {
             await preview.init();
             await preview.run();
         } catch (error) {
-            expect(error.message).toBe(
+            expect((error as any).message).toBe(
                 messages.getMessage(
                     'error:invalidComponentNameFlagsDescription'
                 )
@@ -129,7 +141,7 @@ describe('Preview Tests', () => {
             await preview.init();
             await preview.run();
         } catch (error) {
-            expect(error instanceof SfdxError).toBeTruthy();
+            expect(error instanceof SfError).toBeTruthy();
         }
 
         expect(failedSetupMock).toHaveBeenCalled();
@@ -218,10 +230,7 @@ describe('Preview Tests', () => {
             args.push(targetapp);
         }
 
-        const preview = new Preview(
-            args,
-            new Config.Config(({} as any) as Config.Options)
-        );
+        const preview = new Preview(args, new Config({} as Options));
 
         return preview;
     }

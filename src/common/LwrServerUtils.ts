@@ -1,47 +1,51 @@
 /*
- * Copyright (c) 2021, salesforce.com, inc.
+ * Copyright (c) 2023, salesforce.com, inc.
  * All rights reserved.
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
-import { createServer, LwrApp } from 'lwr';
-import { LwrGlobalConfig } from '@lwrjs/types';
-import {
-    DirModuleRecord,
-    LwrRoute,
-    ServiceEntry
-} from '@lwrjs/types/build/config';
-
-import fs from 'fs';
+import { normalizeConfig } from '@lwrjs/config';
+import { DirModuleRecord, ServiceConfig } from '@lwrjs/types';
+import { createServer, LwrApp, LwrGlobalConfig, LwrRoute } from 'lwr';
 import path from 'path';
-import os from 'os';
-
-const defaultServerTimeout = 30 * 60 * 1000; // 30 minutes
 
 export class LwrServerUtils {
+    public static DEFAULT_SERVER_PORT = 3000;
+
     public static async startLwrServer(
         componentName: string,
         projectDir: string,
-        idleTimeout: number = defaultServerTimeout,
-        exitOnIdle: boolean = true
+        serverTimeoutMinutes: number = 30
     ): Promise<string> {
-        const lwrApp = createServer(
-            LwrServerUtils.getMergedLwrConfig(componentName, projectDir)
+        const lwrConfig = LwrServerUtils.getMergedLwrConfig(
+            componentName,
+            projectDir
         );
+        const lwrApp = createServer(lwrConfig);
 
         const runtimeConfig = lwrApp.getConfig();
+        const expressServer = lwrApp.getInternalServer<'express'>();
 
         return lwrApp
             .listen(() => {
-                // tslint:disable-next-line: no-console
                 console.log(
-                    `Listening on port ${runtimeConfig.port} ( mode = ${runtimeConfig.serverMode} , type = ${runtimeConfig.serverType} )`
+                    `Listening on port ${runtimeConfig.port} in mode ${runtimeConfig.serverMode}`
                 );
-                LwrServerUtils.setServerIdleTimeout(lwrApp, idleTimeout, () => {
-                    if (exitOnIdle) {
-                        process.exit(0); // kill the process on server timeout
+
+                let timer = LwrServerUtils.setShutDownTimer(
+                    lwrApp,
+                    serverTimeoutMinutes
+                );
+                // reset the timer every time a request is sent to the server
+                expressServer.on('request', () => {
+                    if (timer) {
+                        clearTimeout(timer);
                     }
+                    timer = LwrServerUtils.setShutDownTimer(
+                        lwrApp,
+                        serverTimeoutMinutes
+                    );
                 });
             })
             .then(() => {
@@ -53,20 +57,10 @@ export class LwrServerUtils {
         componentName: string,
         projectDir: string
     ): LwrGlobalConfig {
-        const nextPort = LwrServerUtils.getNextServerPort();
         const rootDirectory = path.resolve(projectDir);
-        const cacheDirectory = path.resolve(`${projectDir}/__lwr_cache__`);
 
-        // Here we are doing 2 things:
-        // 1. We are going to inject our own module provider b/c LWR requires the apps to provide their own npm packages
-        // where as when the user using SFDX to create a project for LWC components, that project won't have any of the
-        // packages needed by LWR. However our plugin does have those packages, but LWR does not seem to have a way of
-        // allowing for a 'backup location' for looking up packages. So to work around that we create a custom module provider
-        // that would attempt at resolving packages using the 'node_modules' of our plugin.
-        //
-        //
-        // 2. Due to bug W-9230056 we are using our internal LWC Module provider in place of the default LWC module provider from LWR
-        const modifiedModuleProviders = LwrServerUtils.getModifiedModuleProviders();
+        const modifiedModuleProviders: ServiceConfig[] =
+            LwrServerUtils.getModifiedModuleProviders();
 
         // e.g: /LWC-Mobile-Samples/HelloWorld/force-app/main/default/lwc/helloWorld
         const componentFullPath = path.resolve(
@@ -86,7 +80,7 @@ export class LwrServerUtils {
         };
 
         const defaultLwrRoute: LwrRoute = {
-            id: rootComp,
+            id: `${rootComp.replace(/\//gi, '-')}-${Date.now()}`,
             path: '/',
             rootComponent: rootComp
         };
@@ -101,22 +95,24 @@ export class LwrServerUtils {
             // ignore and continue
         }
 
-        if (!config.port && nextPort) {
-            config.port = nextPort;
+        if (!config.serverMode) {
+            config.serverMode = 'dev'; // default to dev mode so that it watches files
+        }
+
+        if (!config.port) {
+            config.port = LwrServerUtils.getNextAvailablePort();
         }
 
         if (!config.rootDir) {
             config.rootDir = rootDirectory;
         }
 
-        if (!config.cacheDir) {
-            config.cacheDir = cacheDirectory;
-        }
-
         if (!config.lwc) {
             config.lwc = {
                 modules: [lwcModuleRecord]
             };
+        } else if (!config.lwc.modules) {
+            config.lwc.modules = [lwcModuleRecord];
         } else {
             config.lwc.modules.unshift(lwcModuleRecord);
         }
@@ -136,125 +132,75 @@ export class LwrServerUtils {
         return config;
     }
 
-    public static setServerIdleTimeout(
-        app: LwrApp,
-        timeout: number,
-        callback: () => void
-    ): void {
-        // Ideally LWR should provide API for setting an idle timeout for the server.
-        // But they currently don't have this feature so we jump through a little hoop
-        // here to set an idle timeout detection mechanism. We do this b/c every time
-        // the Preview command is invoked, it will launch a new server on a port and
-        // we don't want to leave server processes running in the background on a
-        // user's machine. So we add this detection and when a server is idle for a
-        // given amount of time, we will then close its connection and exit the process.
-        // tslint:disable:no-string-literal
-        const server = app['server'];
-        if (server) {
-            let timer = LwrServerUtils.setTimeoutTimer(app, timeout, callback);
-            server.on('request', () => {
-                if (timer) {
-                    clearTimeout(timer);
-                }
-                timer = LwrServerUtils.setTimeoutTimer(app, timeout, callback);
-            });
-        }
-    }
-
-    public static getNextServerPort(): number | undefined {
-        try {
-            // Get a list of all TCP ports that are currently in use. Pick the highest port number
-            // and then increment that by 2 to use as the new port for LWR server.
-            const getUsedTCPPortsCommand =
-                process.platform === 'win32'
-                    ? 'netstat -ano -p tcp | findstr "LISTENING"' // output format: TCP  0.0.0.0:3000  0.0.0.0  LISTENING  4636
-                    : 'lsof -Pn -iTCP -sTCP:LISTEN | grep TCP'; // output format: node  87475 username  35u  IPv6  0x78e419ed04835b59  0t0  TCP  *:3000 (LISTEN)
-
-            const results = CommonUtils.executeCommandSync(
-                getUsedTCPPortsCommand
-            ).split('\n');
-
-            const ports: number[] = [];
-            for (const result of results) {
-                try {
-                    let idxStart = result.indexOf('TCP') + 3;
-                    idxStart = result.indexOf(':', idxStart) + 1;
-                    const idxEnd = result.indexOf(' ', idxStart);
-                    const portString = result.substring(idxStart, idxEnd);
-                    const portNumber = parseInt(portString, 10);
-                    if (!Number.isNaN(portNumber)) {
-                        ports.push(portNumber);
-                    }
-                } catch {
-                    // ignore and continue
-                }
-            }
-            ports.sort((a, b) => (a > b ? 1 : -1));
-            const largest = ports[ports.length - 1];
-            if (largest) {
-                return largest + 2;
-            } else {
-                return undefined;
-            }
-        } catch {
-            return undefined;
-        }
-    }
-
-    private static getModifiedModuleProviders(): ServiceEntry[] {
-        // We have to jump through the hoop of creating a temporary instance of an LwrApp because
-        // DEFAULT_MODULE_PROVIDERS which is defined in @lwrjs/core/src/env-config.ts is not exported.
-        // Otherwise we could have just used DEFAULT_MODULE_PROVIDERS to get the default providers.
-        const cacheDirectory = path.join(
-            os.tmpdir(),
-            '__temporary_cache_to_be_deleted__'
-        );
-        const tempServer = createServer({
-            cacheDir: cacheDirectory
+    public static getModifiedModuleProviders(): ServiceConfig[] {
+        const defaultConfig = normalizeConfig(undefined, {
+            skipCacheDirCreation: true
         });
-        const config = tempServer.getConfig();
-        tempServer.close();
-
-        // cleanup the fake cache folder that is created
-        fs.rmdirSync(cacheDirectory, { recursive: true });
-
-        // TODO: When bug W-9230056 is fixed, get rid of this mapping and just append our
-        //       custom module provider directly to config.moduleProviders.
-        const newProviders: ServiceEntry[] = config.moduleProviders.map(
-            (provider) =>
-                provider[0] === '@lwrjs/lwc-module-provider'
-                    ? [
-                          path.resolve(
-                              `${__dirname}/InternalLwcModuleProvider.js`
-                          ),
-                          undefined
-                      ]
-                    : provider
-        );
-        newProviders.push([
+        const providers = defaultConfig.moduleProviders;
+        providers.unshift([
             path.resolve(`${__dirname}/CustomLwcModuleProvider.js`),
             undefined
         ]);
-
-        return newProviders;
+        return providers;
     }
 
-    private static setTimeoutTimer(
-        lwrApp: LwrApp,
-        timeoutMilliseconds: number,
-        callback: () => void
-    ): NodeJS.Timeout {
-        return setTimeout(async () => {
-            const timeoutSeconds = timeoutMilliseconds / 1000;
+    /**
+     * Return a port number to be used by LWR server.
+     *
+     * It starts with port 3000 and checks to see if it is in use or not. If it is in use
+     * then we increment the port number by 2 and check if it is in use or not. This process
+     * is repeated until a port that is not in use is found.
+     *
+     * @returns a port number
+     */
+    public static getNextAvailablePort(): number {
+        let port = LwrServerUtils.DEFAULT_SERVER_PORT;
+        let done = false;
 
-            // tslint:disable-next-line: no-console
-            console.log(
-                `Server idle for ${timeoutSeconds} seconds... shutting down`
-            );
+        while (!done) {
+            const cmd =
+                process.platform === 'win32'
+                    ? `netstat -an | find "LISTENING" | find ":${port}"`
+                    : `lsof -i :${port}`;
 
-            await lwrApp.close();
+            try {
+                const result = CommonUtils.executeCommandSync(cmd);
+                if (result.trim()) {
+                    port = port + 2; // that port is in use so try another
+                } else {
+                    done = true;
+                }
+            } catch (error) {
+                // On some platforms (like mac) if the command doesn't produce
+                // any results then that is considered an error but in our case
+                // that means the port is not in use and is ready for us to use.
+                done = true;
+            }
+        }
 
-            callback();
-        }, timeoutMilliseconds);
+        return port;
+    }
+
+    private static setShutDownTimer(lwrapp: LwrApp, timeoutMinutes: number) {
+        return setTimeout(
+            async () => {
+                console.log(
+                    `Server idle for ${timeoutMinutes} minutes... shutting down`
+                );
+
+                let exitCode = 0;
+                try {
+                    await lwrapp.close();
+                } catch (error) {
+                    console.error(
+                        `Unable to gracefully shutdown the server - ${error}`
+                    );
+                    exitCode = 1;
+                }
+
+                process.exit(exitCode); // kill the process on server timeout
+            },
+            timeoutMinutes * 60 * 1000
+        );
     }
 }

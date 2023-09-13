@@ -5,7 +5,8 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 
-import * as Config from '@oclif/config';
+import { Config } from '@oclif/core/lib/config';
+import { Options } from '@oclif/core/lib/interfaces';
 import { Logger } from '@salesforce/core';
 import { AndroidUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidUtils';
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
@@ -14,28 +15,35 @@ import { IOSUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/IOSUtils';
 import { RequirementProcessor } from '@salesforce/lwc-dev-mobile-core/lib/common/Requirements';
 import { Start } from '../start';
 
-const targetName = 'MyDevice';
-const targetUDID = 'myUDID';
-const emulatorPort = 5572;
-const hasEmulatorMock = jest.fn(() => Promise.resolve(true));
-const getSimulatorMock = jest.fn(() =>
-    Promise.resolve(
-        new IOSSimulatorDevice(
-            targetName,
-            targetUDID,
-            'active',
-            'runtimeID',
-            true
-        )
-    )
-);
-const passedSetupMock = jest.fn(() => {
-    return Promise.resolve();
-});
-
 describe('Start Tests', () => {
+    const targetName = 'MyDevice';
+    const targetUDID = 'myUDID';
+    const emulatorPort = 5572;
+
+    let hasEmulatorMock: jest.Mock<any, [], any>;
+    let getSimulatorMock: jest.Mock<any, [], any>;
+    let passedSetupMock: jest.Mock<any, [], any>;
+
     beforeEach(() => {
-        // tslint:disable-next-line: no-empty
+        hasEmulatorMock = jest.fn(() => Promise.resolve(true));
+
+        getSimulatorMock = jest.fn(() =>
+            Promise.resolve(
+                new IOSSimulatorDevice(
+                    targetName,
+                    targetUDID,
+                    'active',
+                    'runtimeID',
+                    true
+                )
+            )
+        );
+
+        passedSetupMock = jest.fn(() => {
+            return Promise.resolve();
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         jest.spyOn(CommonUtils, 'startCliAction').mockImplementation(() => {});
         jest.spyOn(RequirementProcessor, 'execute').mockImplementation(
             passedSetupMock
@@ -65,7 +73,7 @@ describe('Start Tests', () => {
         expect(startEmulatorMock).toHaveBeenCalledWith(targetName, true, false);
     });
 
-    test('Checks that launch for target platform for iOS is invoked', async () => {
+    test('Checks that launch for target platform for iOS with name is invoked', async () => {
         const bootDeviceMock = jest.fn(() => Promise.resolve());
         const launchSimulatorAppMock = jest.fn(() => Promise.resolve());
 
@@ -80,6 +88,26 @@ describe('Start Tests', () => {
         );
 
         const start = makeStart('iOS', targetName);
+        await start.init();
+        await start.run();
+        expect(bootDeviceMock).toHaveBeenCalledWith(targetUDID, false);
+    });
+
+    test('Checks that launch for target platform for iOS with udid is invoked', async () => {
+        const bootDeviceMock = jest.fn(() => Promise.resolve());
+        const launchSimulatorAppMock = jest.fn(() => Promise.resolve());
+
+        jest.spyOn(IOSUtils, 'getSimulator').mockImplementation(
+            getSimulatorMock
+        );
+
+        jest.spyOn(IOSUtils, 'bootDevice').mockImplementation(bootDeviceMock);
+
+        jest.spyOn(IOSUtils, 'launchSimulatorApp').mockImplementation(
+            launchSimulatorAppMock
+        );
+
+        const start = makeStart('iOS', targetUDID);
         await start.init();
         await start.run();
         expect(bootDeviceMock).toHaveBeenCalledWith(targetUDID, false);
@@ -117,16 +145,13 @@ describe('Start Tests', () => {
     function makeStart(
         platform: string,
         target: string,
-        writable: boolean = false
+        writable = false
     ): Start {
         const args = ['-p', platform, '-t', target];
         if (writable) {
             args.push('-w');
         }
-        const start = new Start(
-            args,
-            new Config.Config(({} as any) as Config.Options)
-        );
+        const start = new Start(args, new Config({} as Options));
         return start;
     }
 });

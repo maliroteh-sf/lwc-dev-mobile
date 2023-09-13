@@ -6,7 +6,7 @@
 
 # Salesforce CLI Mobile Extensions
 
-The Salesforce CLI Mobile Extensions allow you to extend the local preview capabilities of the [Local Development Server plug-in](https://developer.salesforce.com/tools/vscode/en/lwc/localdev/). You can see live previews of your Lightning Web Components on virtual mobile devices for iOS and Android.
+The Salesforce CLI Mobile Extensions allow you to extend the local preview capabilities of the [Local Development Server plug-in](https://developer.salesforce.com/tools/vscode/en/localdev/lwclocaldev). You can see live previews of your Lightning Web Components on virtual mobile devices for iOS and Android.
 
 
 **Note:** This feature is in beta, and may contain significant problems, undergo major changes, or be discontinued. If you encounter any problems, or want to request an enhancement, please open a [GitHub Issue](https://github.com/forcedotcom/lwc-dev-mobile/issues).
@@ -52,7 +52,7 @@ Setup helps you set up virtual mobile devices—iOS simulators and Android emula
 sfdx force:lightning:local:setup -p <mobile platform>
 ```
 
-- `-p, --platform=platform` Specify platform ('iOS' or 'Android')
+- `-p, --platform=platform` Specify platform (iOS or Android)
 
 For example:
 
@@ -62,14 +62,14 @@ $ sfdx force:lightning:local:setup -p iOS
 
 #### Preview
 
-Preview extends the local preview capabilities of the [Local Development Server plug-in](https://developer.salesforce.com/tools/vscode/en/lwc/localdev/). With Mobile Extensions, you can use this plug-in to preview your Lightning Web Components on virtual mobile devices.
+Preview extends the local preview capabilities of the [Local Development Server plug-in](https://developer.salesforce.com/tools/vscode/en/localdev/lwclocaldev). With Mobile Extensions, you can use this plug-in to preview your Lightning Web Components on virtual mobile devices.
 
 ```
 sfdx force:lightning:lwc:preview -n <component name> -p <mobile platform>] [-t <target>]
 ```
 
 - `-n, --componentname=componentname` The LWC component name
-- `-p, --platform=platform` Specify platform ('iOS' or 'Android')
+- `-p, --platform=platform` Specify platform (iOS or Android)
 - `-t, --target=target` Specify name of target simulator or emulator
 
 For example:

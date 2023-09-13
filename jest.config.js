@@ -8,7 +8,7 @@ module.exports = {
     displayName: 'Unit Tests',
     setupFilesAfterEnv: ['jest-extended', 'jest-chain'],
     transform: {
-        '^.+\\.tsx?$': 'ts-jest'
+        '^.+\\.ts?$': 'ts-jest'
     },
     testMatch: ['**/__tests__/**/?(*.)(spec|test).(js|ts)'],
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
@@ -24,7 +24,9 @@ module.exports = {
     collectCoverage: false,
     coverageReporters: ['json', 'html', 'text'],
     collectCoverageFrom: ['src/**/*.ts', 'src/**/*.js', 'modules/**/*.js'],
-    coveragePathIgnorePatterns: ['prismjs.js'],
+    coveragePathIgnorePatterns: [
+        'prismjs.js'
+    ],
     coverageDirectory: 'reports/coverage',
     reporters: [
         'default',

@@ -5,11 +5,15 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 
-import { flags, SfdxCommand } from '@salesforce/command';
-import { Logger, Messages, SfdxError } from '@salesforce/core';
+import { Flags } from '@salesforce/sf-plugins-core';
+import { Messages, SfError } from '@salesforce/core';
 import { AndroidEnvironmentRequirements } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidEnvironmentRequirements';
 import { AndroidLauncher } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidLauncher';
-import { CommandLineUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/Common';
+import { BaseCommand } from '@salesforce/lwc-dev-mobile-core/lib/common/BaseCommand';
+import {
+    CommandLineUtils,
+    FlagsConfigType
+} from '@salesforce/lwc-dev-mobile-core/lib/common/Common';
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
 import { IOSEnvironmentRequirements } from '@salesforce/lwc-dev-mobile-core/lib/common/IOSEnvironmentRequirements';
 import { IOSLauncher } from '@salesforce/lwc-dev-mobile-core/lib/common/IOSLauncher';
@@ -20,13 +24,13 @@ import {
 import { PreviewUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/PreviewUtils';
 import {
     CommandRequirements,
-    HasRequirements,
     RequirementProcessor
 } from '@salesforce/lwc-dev-mobile-core/lib/common/Requirements';
 import { LwrServerUtils } from '../../../../../common/LwrServerUtils';
 
 import fs from 'fs';
 import path from 'path';
+import util from 'util';
 import * as configSchema from './previewConfigurationSchema.json';
 
 // Initialize Messages with the current plugin directory
@@ -36,53 +40,59 @@ Messages.importMessagesDirectory(__dirname);
 // or any library that is using the messages framework can also be loaded this way.
 const messages = Messages.loadMessages('@salesforce/lwc-dev-mobile', 'preview');
 
-export class Preview extends SfdxCommand implements HasRequirements {
-    public static description = messages.getMessage('commandDescription');
+export class Preview extends BaseCommand {
+    protected _commandName = 'force:lightning:lwc:preview';
 
-    public static args = [{ name: 'file' }];
+    public static readonly description =
+        messages.getMessage('commandDescription');
 
-    public static examples = [
-        `$ sfdx force:lightning:lwc:preview -p Desktop -n HelloWordComponent`,
-        `$ sfdx force:lightning:lwc:preview -p iOS -t LWCSim2 -n HelloWordComponent`,
-        `$ sfdx force:lightning:lwc:preview -p Android -t LWCEmu2 -n HelloWordComponent`
+    public static readonly examples = [
+        `sfdx force:lightning:lwc:preview -p Desktop -n force-app/main/default/lwc/myComponent -d /path/to/my/project`,
+        `sfdx force:lightning:lwc:preview -p iOS -t MySimulator -n force-app/main/default/lwc/myComponent -d /path/to/my/project`,
+        `sfdx force:lightning:lwc:preview -p Android -t MyEmulator -n force-app/main/default/lwc/myComponent -d /path/to/my/project`
     ];
 
-    public static flagsConfig = {
-        // flag with a value (-n, --name=VALUE)
-        platform: flags.string({
-            char: 'p',
-            description: `Specify platform ('Desktop' or 'iOS' or 'Android').`,
-            required: true
-        }),
-        componentname: flags.string({
+    private static createError(stringId: string, ...param: any[]): SfError {
+        let msg = messages.getMessage(stringId);
+        if (param.length > 0) {
+            msg = util.format(msg, param);
+        }
+        return new SfError(msg, 'lwc-dev-mobile', Preview.examples);
+    }
+
+    public static readonly flags = {
+        ...CommandLineUtils.createFlag(FlagsConfigType.Json, false),
+        ...CommandLineUtils.createFlag(FlagsConfigType.LogLevel, false),
+        ...CommandLineUtils.createFlag(FlagsConfigType.Platform, true, true),
+        componentname: Flags.string({
             char: 'n',
             description: messages.getMessage('componentnameFlagDescription'),
             required: true
         }),
-        configfile: flags.string({
+        configfile: Flags.string({
             char: 'f',
             description: messages.getMessage('configFileFlagDescription'),
             required: false,
             default: ''
         }),
-        confighelp: flags.help({
+        confighelp: Flags.boolean({
             default: false,
             description: messages.getMessage('configHelpFlagDescription'),
             required: false
         }),
-        projectdir: flags.string({
+        projectdir: Flags.string({
             char: 'd',
             description: messages.getMessage('projectDirFlagDescription'),
             required: false,
             default: process.cwd()
         }),
-        target: flags.string({
+        target: Flags.string({
             char: 't',
             description: messages.getMessage('targetFlagDescription'),
             required: false,
             default: 'SFDXDebug'
         }),
-        targetapp: flags.string({
+        targetapp: Flags.string({
             char: 'a',
             description: messages.getMessage('targetAppFlagDescription'),
             required: false,
@@ -90,55 +100,81 @@ export class Preview extends SfdxCommand implements HasRequirements {
         })
     };
 
-    // Comment this out if your command does not require an org username
-    protected static requiresUsername = false;
-
-    // Comment this out if your command does not support a hub org username
-    protected static supportsDevhubUsername = false;
-
     // Set this to true if your command requires a project workspace; 'requiresProject' is false by default
-    protected static requiresProject = false;
+    // public static requiresProject = false;
 
-    private deviceName: string = '';
-    private componentName: string = '';
-    private targetApp: string = '';
-    private projectDir: string = '';
-    private configFilePath: string = '';
+    private deviceName = '';
+    private componentName = '';
+    private targetApp = '';
+    private projectDir = '';
+    private configFilePath = '';
     private appConfig:
         | IOSAppPreviewConfig
         | AndroidAppPreviewConfig
         | undefined;
 
-    public async run(): Promise<any> {
-        this.logger.info(`Preview command invoked for ${this.flags.platform}`);
+    public async run(): Promise<void> {
+        this.logger.info(
+            `Preview command invoked for ${this.flagValues.platform}`
+        );
 
         return this.validateInputParameters() // validate input
             .then(() => {
-                return RequirementProcessor.execute(this.commandRequirements); // verify requirements
-            })
-            .then(() => {
-                // then launch the preview if all validations have passed
-                this.logger.info(
-                    'Setup requirements met, continuing with preview'
-                );
-                return this.launchPreview();
+                if (this.flagValues.confighelp === true) {
+                    const message = messages.getMessage(
+                        'configFileHelpDescription'
+                    );
+                    console.log(`${message}`);
+                    return Promise.resolve();
+                } else {
+                    return RequirementProcessor.execute(
+                        this.commandRequirements
+                    ).then(() => {
+                        // then launch the preview if all validations have passed
+                        this.logger.info(
+                            'Setup requirements met, continuing with preview'
+                        );
+                        return this.launchPreview();
+                    });
+                }
             })
             .catch((error) => {
-                this.logger.warn(`Preview failed for ${this.flags.platform}.`);
+                this.logger.warn(
+                    `Preview failed for ${this.flagValues.platform}.`
+                );
                 return Promise.reject(error);
             });
     }
 
+    protected populateCommandRequirements(): void {
+        if (CommandLineUtils.platformFlagIsDesktop(this.flagValues.platform)) {
+            return;
+        }
+
+        const requirements: CommandRequirements = {};
+
+        requirements.setup = CommandLineUtils.platformFlagIsAndroid(
+            this.flagValues.platform
+        )
+            ? new AndroidEnvironmentRequirements(
+                  this.logger,
+                  this.flagValues.apilevel
+              )
+            : new IOSEnvironmentRequirements(this.logger);
+        this._commandRequirements = requirements;
+    }
+
     private async validateInputParameters(): Promise<void> {
-        this.deviceName = (this.flags.target as string).trim();
-        this.componentName = (this.flags.componentname as string).trim();
-        this.targetApp = (this.flags.targetapp as string).trim();
+        this.deviceName = (this.flagValues.target as string).trim();
+        this.componentName = (this.flagValues.componentname as string).trim();
+        this.targetApp = (this.flagValues.targetapp as string).trim();
+
         this.projectDir = CommonUtils.resolveUserHomePath(
-            (this.flags.projectdir as string).trim()
+            (this.flagValues.projectdir as string).trim()
         );
 
         const configFileName = CommonUtils.resolveUserHomePath(
-            (this.flags.configfile as string).trim()
+            (this.flagValues.configfile as string).trim()
         );
 
         this.configFilePath = path.normalize(
@@ -154,27 +190,12 @@ export class Preview extends SfdxCommand implements HasRequirements {
 
         this.logger.debug('Validating Preview command inputs.');
 
-        const platform = (this.flags.platform as string).trim();
-        if (!CommandLineUtils.platformFlagIsValid(platform, true)) {
-            return Promise.reject(
-                new SfdxError(
-                    messages.getMessage('error:invalidInputFlagsDescription'),
-                    'lwc-dev-mobile',
-                    Preview.examples
-                )
-            );
-        }
-
         if (
-            CommandLineUtils.platformFlagIsDesktop(platform) &&
+            CommandLineUtils.platformFlagIsDesktop(this.flagValues.target) &&
             !isBrowserTargetApp
         ) {
             return Promise.reject(
-                new SfdxError(
-                    messages.getMessage('error:invalidTargetAppForDesktop'),
-                    'lwc-dev-mobile',
-                    Preview.examples
-                )
+                Preview.createError('error:invalidTargetAppForDesktop')
             );
         }
 
@@ -188,44 +209,34 @@ export class Preview extends SfdxCommand implements HasRequirements {
 
         if (this.componentName.length === 0) {
             return Promise.reject(
-                new SfdxError(
-                    messages.getMessage(
-                        'error:invalidComponentNameFlagsDescription'
-                    ),
-                    'lwc-dev-mobile',
-                    Preview.examples
+                Preview.createError(
+                    'error:invalidComponentNameFlagsDescription'
                 )
             );
         }
 
         if (isBrowserTargetApp === false && hasConfigFile === false) {
             return Promise.reject(
-                new SfdxError(
-                    messages.getMessage(
-                        'error:invalidConfigFile:missingDescription',
-                        [this.configFilePath]
-                    ),
-                    'lwc-dev-mobile',
-                    Preview.examples
+                Preview.createError(
+                    'error:invalidConfigFile:missingDescription',
+                    this.configFilePath
                 )
             );
         }
 
         if (isBrowserTargetApp === false && hasConfigFile === true) {
             // 1. validate config file against schema
-            const validationResult = await PreviewUtils.validateConfigFileWithSchema(
-                this.configFilePath,
-                configSchema
-            );
+            const validationResult =
+                await PreviewUtils.validateConfigFileWithSchema(
+                    this.configFilePath,
+                    configSchema
+                );
             if (validationResult.passed === false) {
                 return Promise.reject(
-                    new SfdxError(
-                        messages.getMessage(
-                            'error:invalidConfigFile:genericDescription',
-                            [this.configFilePath, validationResult.errorMessage]
-                        ),
-                        'lwc-dev-mobile',
-                        Preview.examples
+                    Preview.createError(
+                        'error:invalidConfigFile:genericDescription',
+                        this.configFilePath,
+                        validationResult.errorMessage
                     )
                 );
             }
@@ -235,81 +246,25 @@ export class Preview extends SfdxCommand implements HasRequirements {
                 this.configFilePath
             );
             this.appConfig = configFileContent.getAppConfig(
-                this.flags.platform,
+                this.flagValues.platform,
                 this.targetApp
             );
             if (this.appConfig === undefined) {
                 const errMsg = messages.getMessage(
                     'error:invalidConfigFile:missingAppConfigDescription',
-                    [this.targetApp, this.flags.platform]
+                    [this.targetApp, this.flagValues.platform]
                 );
                 return Promise.reject(
-                    new SfdxError(
-                        messages.getMessage(
-                            'error:invalidConfigFile:genericDescription',
-                            [this.configFilePath, errMsg]
-                        ),
-                        'lwc-dev-mobile',
-                        Preview.examples
+                    Preview.createError(
+                        'error:invalidConfigFile:genericDescription',
+                        this.configFilePath,
+                        errMsg
                     )
                 );
             }
         }
 
         return Promise.resolve();
-    }
-
-    public async init(): Promise<void> {
-        if (this.logger) {
-            // already initialized
-            return Promise.resolve();
-        }
-
-        CommandLineUtils.flagFailureActionMessages = Preview.examples;
-        return super
-            .init()
-            .then(() => Logger.child('force:lightning:lwc:preview', {}))
-            .then((logger) => {
-                this.logger = logger;
-                return Promise.resolve();
-            });
-    }
-
-    protected _help(): never {
-        const isCommandHelp =
-            this.argv.filter(
-                (v) => v.toLowerCase() === '-h' || v.toLowerCase() === '--help'
-            ).length > 0;
-
-        if (isCommandHelp) {
-            super._help();
-        } else {
-            const message = messages.getMessage('configFileHelpDescription');
-            // tslint:disable-next-line: no-console
-            console.log(`${message}`);
-        }
-
-        return this.exit(0);
-    }
-
-    private _requirements: CommandRequirements = {};
-    public get commandRequirements(): CommandRequirements {
-        if (Object.keys(this._requirements).length === 0) {
-            const requirements: CommandRequirements = {};
-            if (!CommandLineUtils.platformFlagIsDesktop(this.flags.platform)) {
-                requirements.setup = CommandLineUtils.platformFlagIsAndroid(
-                    this.flags.platform
-                )
-                    ? new AndroidEnvironmentRequirements(
-                          this.logger,
-                          this.flags.apilevel
-                      )
-                    : new IOSEnvironmentRequirements(this.logger);
-                this._requirements = requirements;
-            }
-        }
-
-        return this._requirements;
     }
 
     private async launchPreview(): Promise<void> {
@@ -338,9 +293,11 @@ export class Preview extends SfdxCommand implements HasRequirements {
             }
         }
 
-        if (CommandLineUtils.platformFlagIsDesktop(this.flags.platform)) {
+        if (CommandLineUtils.platformFlagIsDesktop(this.flagValues.platform)) {
             return this.launchDesktop(this.componentName, this.projectDir);
-        } else if (CommandLineUtils.platformFlagIsIOS(this.flags.platform)) {
+        } else if (
+            CommandLineUtils.platformFlagIsIOS(this.flagValues.platform)
+        ) {
             const config =
                 this.appConfig && (this.appConfig as IOSAppPreviewConfig);
             return this.launchIOS(
@@ -369,13 +326,11 @@ export class Preview extends SfdxCommand implements HasRequirements {
         componentName: string,
         projectDir: string
     ): Promise<void> {
-        return LwrServerUtils.startLwrServer(
-            componentName,
-            projectDir
-        ).then((serverPort) =>
-            CommonUtils.launchUrlInDesktopBrowser(
-                `http://localhost:${serverPort}`
-            )
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                CommonUtils.launchUrlInDesktopBrowser(
+                    `http://localhost:${serverPort}`
+                )
         );
     }
 
@@ -389,18 +344,16 @@ export class Preview extends SfdxCommand implements HasRequirements {
     ): Promise<void> {
         const launcher = new IOSLauncher(deviceName);
 
-        return LwrServerUtils.startLwrServer(
-            componentName,
-            projectDir
-        ).then((serverPort) =>
-            launcher.launchPreview(
-                componentName,
-                projectDir,
-                appBundlePath,
-                targetApp,
-                appConfig,
-                serverPort
-            )
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                launcher.launchPreview(
+                    componentName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    appConfig,
+                    serverPort
+                )
         );
     }
 
@@ -414,18 +367,16 @@ export class Preview extends SfdxCommand implements HasRequirements {
     ): Promise<void> {
         const launcher = new AndroidLauncher(deviceName);
 
-        return LwrServerUtils.startLwrServer(
-            componentName,
-            projectDir
-        ).then((serverPort) =>
-            launcher.launchPreview(
-                componentName,
-                projectDir,
-                appBundlePath,
-                targetApp,
-                appConfig,
-                serverPort
-            )
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                launcher.launchPreview(
+                    componentName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    appConfig,
+                    serverPort
+                )
         );
     }
 }

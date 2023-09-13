@@ -5,7 +5,8 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 
-import * as Config from '@oclif/config';
+import { Config } from '@oclif/core/lib/config';
+import { Options } from '@oclif/core/lib/interfaces';
 import { Logger } from '@salesforce/core';
 import { AndroidPackage } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidTypes';
 import { AndroidUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/AndroidUtils';
@@ -15,32 +16,35 @@ import { IOSUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/IOSUtils';
 import { RequirementProcessor } from '@salesforce/lwc-dev-mobile-core/lib/common/Requirements';
 import { Create } from '../create';
 
-const passedSetupMock = jest.fn(() => {
-    return Promise.resolve();
-});
-
-const deviceName = 'MyDeviceName';
-const iOSDeviceType = 'iPhone-8';
-const iOSSupportedRuntimes = ['iOS-14-2', 'iOS-14', 'iOS-13.2'];
-const androidDeviceType = 'pixel_xl';
-const androidApi = 'android-29';
-const androidImage = 'google_apis';
-const androidABI = 'x86_64';
-
-const findEmulatorImagesMock = jest.fn(() => {
-    return Promise.resolve(
-        new AndroidPackage(
-            `${androidApi};${androidImage};${androidABI}`,
-            new Version(29, 0, 0),
-            'Google APIs Intel x86 Atom_64 System Image',
-            `system-images/${androidApi}/${androidImage}/${androidABI}/`
-        )
-    );
-});
-
 describe('Create Tests', () => {
+    const deviceName = 'MyDeviceName';
+    const iOSDeviceType = 'iPhone-8';
+    const iOSSupportedRuntimes = ['iOS-14-2', 'iOS-14', 'iOS-13.2'];
+    const androidDeviceType = 'pixel_xl';
+    const androidApi = 'android-29';
+    const androidImage = 'google_apis';
+    const androidABI = 'x86_64';
+
+    let passedSetupMock: jest.Mock<any, [], any>;
+    let findEmulatorImagesMock: jest.Mock<any, [], any>;
+
     beforeEach(() => {
-        // tslint:disable-next-line: no-empty
+        passedSetupMock = jest.fn(() => {
+            return Promise.resolve();
+        });
+
+        findEmulatorImagesMock = jest.fn(() => {
+            return Promise.resolve(
+                new AndroidPackage(
+                    `${androidApi};${androidImage};${androidABI}`,
+                    new Version(29, 0, 0),
+                    'Google APIs Intel x86 Atom_64 System Image',
+                    `system-images/${androidApi}/${androidImage}/${androidABI}/`
+                )
+            );
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         jest.spyOn(CommonUtils, 'startCliAction').mockImplementation(() => {});
         jest.spyOn(RequirementProcessor, 'execute').mockImplementation(
             passedSetupMock
@@ -101,9 +105,6 @@ describe('Create Tests', () => {
     });
 
     test('Checks additional requirements are executed', async () => {
-        jest.restoreAllMocks();
-        // tslint:disable-next-line: no-empty
-        jest.spyOn(CommonUtils, 'startCliAction').mockImplementation(() => {});
         jest.spyOn(IOSUtils, 'getSupportedRuntimes').mockReturnValue(
             Promise.resolve(iOSSupportedRuntimes)
         );
@@ -118,9 +119,6 @@ describe('Create Tests', () => {
         });
         jest.spyOn(IOSUtils, 'createNewDevice').mockImplementation(
             createNewDeviceMock
-        );
-        jest.spyOn(RequirementProcessor, 'execute').mockImplementation(
-            passedSetupMock
         );
 
         const create = makeCreate(deviceName, iOSDeviceType, 'ios');
@@ -158,7 +156,7 @@ describe('Create Tests', () => {
     function makeCreate(name: string, type: string, platform: string): Create {
         const create = new Create(
             ['-n', name, '-d', type, '-p', platform],
-            new Config.Config(({} as any) as Config.Options)
+            new Config({} as Options)
         );
         return create;
     }
