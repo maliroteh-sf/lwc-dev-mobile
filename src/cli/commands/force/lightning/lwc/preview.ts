@@ -90,7 +90,7 @@ export class Preview extends BaseCommand {
             char: 't',
             description: messages.getMessage('targetFlagDescription'),
             required: false,
-            default: 'SFDXDebug'
+            default: 'sfdxdebug'
         }),
         targetapp: Flags.string({
             char: 'a',
@@ -99,9 +99,6 @@ export class Preview extends BaseCommand {
             default: PreviewUtils.BROWSER_TARGET_APP
         })
     };
-
-    // Set this to true if your command requires a project workspace; 'requiresProject' is false by default
-    // public static requiresProject = false;
 
     private deviceName = '';
     private componentName = '';

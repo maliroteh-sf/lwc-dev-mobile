@@ -69,10 +69,6 @@ describe('Preview Tests', () => {
         iosLaunchPreview = jest.fn(() => Promise.resolve());
         androidLaunchPreview = jest.fn(() => Promise.resolve());
 
-        passedSetupMock = jest.fn(() => {
-            return Promise.resolve();
-        });
-
         jest.spyOn(LwrServerUtils, 'startLwrServer').mockImplementation(() =>
             Promise.resolve(defaultServerPort)
         );
