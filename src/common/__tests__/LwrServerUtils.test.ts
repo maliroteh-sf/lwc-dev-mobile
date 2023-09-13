@@ -181,7 +181,7 @@ describe('LwrServerUtils Tests', () => {
 
     function verifyDefaultConfig(config: LwrGlobalConfig) {
         // rootDir must be set to project dir
-        expect(config.rootDir).toBe(projectDir);
+        expect(config.rootDir).toBe(path.normalize(projectDir));
 
         // LWC module record should be set to 2-level-up path
         const lwcModuleRecord = config.lwc?.modules[0] as
