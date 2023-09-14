@@ -47,9 +47,9 @@ export class Preview extends BaseCommand {
         messages.getMessage('commandDescription');
 
     public static readonly examples = [
-        `sfdx force:lightning:lwc:preview -p Desktop -n force-app/main/default/lwc/myComponent -d /path/to/my/project`,
-        `sfdx force:lightning:lwc:preview -p iOS -t MySimulator -n force-app/main/default/lwc/myComponent -d /path/to/my/project`,
-        `sfdx force:lightning:lwc:preview -p Android -t MyEmulator -n force-app/main/default/lwc/myComponent -d /path/to/my/project`
+        `sfdx force:lightning:lwc:preview -p Desktop -n force-app/main/default/lwc/myComponent -d /path/to/project_root`,
+        `sfdx force:lightning:lwc:preview -p iOS -t MySimulator -n force-app/main/default/lwc/myComponent -d /path/to/project_root`,
+        `sfdx force:lightning:lwc:preview -p Android -t MyEmulator -n force-app/main/default/lwc/myComponent -d /path/to/project_root`
     ];
 
     private static createError(stringId: string, ...param: any[]): SfError {
