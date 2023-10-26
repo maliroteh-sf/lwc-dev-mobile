@@ -1,7 +1,7 @@
 {
   "name": "@salesforce/lwc-dev-mobile",
   "description": "Salesforce CLI plugin for mobile extensions to Local Development",
-  "version": "2.3.0",
+  "version": "2.3.0-alpha.1",
   "author": {
     "name": "Raj Rao",
     "email": "rao.r@salesforce.com",
@@ -36,15 +36,21 @@
     "@salesforce/core": "^5.3.12",
     "@salesforce/sf-plugins-core": "^4.0.0",
     "@salesforce/lwc-dev-mobile-core": "^3.3.0",
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "fast-glob": "^3.3.1",
+    "lwc": "~3.2.0",
+    "lwr": "~0.10.2",
+    "lwr-lightning-platform": "~0.1.0"
   },
   "devDependencies": {
+    "@lwrjs/types": "~0.10.2",
     "@types/inquirer": "^9.0.6",
     "@types/jest": "^29.5.6",
     "@types/node": "^20.8.9",
     "@types/sinon": "^10.0.20",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
+    "copyfiles": "^2.4.1",
     "eslint": "^8.52.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-import": "^2.29.0",
@@ -107,6 +113,8 @@
   "scripts": {
     "clean": "yarn rimraf lib dist reports coverage errorShots oclif.manifest.json",
     "build": "yarn clean && tsc",
+    "postbuild": "yarn run copy-files",
+    "copy-files": "copyfiles -u 1 src/**/*.mjs lib",
     "lint": "yarn eslint src --ext js,ts",
     "prepack": "rm -rf lib && tsc -b && oclif manifest && oclif readme",
     "postpack": "rm -f oclif.manifest.json",

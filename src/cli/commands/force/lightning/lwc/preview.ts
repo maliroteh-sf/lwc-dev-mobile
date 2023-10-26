@@ -6,7 +6,7 @@
  */
 
 import { Flags } from '@salesforce/sf-plugins-core';
-import { Logger, Messages, SfError } from '@salesforce/core';
+import { Messages, SfError } from '@salesforce/core';
 import {
     AndroidEnvironmentRequirements,
     AndroidLauncher,
@@ -19,11 +19,10 @@ import {
     IOSEnvironmentRequirements,
     IOSLauncher,
     IOSAppPreviewConfig,
-    PlatformConfig,
     PreviewUtils,
-    Requirement,
     RequirementProcessor
 } from '@salesforce/lwc-dev-mobile-core';
+import { LwrServerUtils } from '../../../../../common/LwrServerUtils';
 import fs from 'fs';
 import path from 'path';
 import util from 'util';
@@ -43,8 +42,9 @@ export class Preview extends BaseCommand {
         messages.getMessage('commandDescription');
 
     public static readonly examples = [
-        `sfdx force:lightning:lwc:preview -p iOS -t LWCSim2 -n HelloWordComponent`,
-        `sfdx force:lightning:lwc:preview -p Android -t LWCEmu2 -n HelloWordComponent`
+        `sfdx force:lightning:lwc:preview -p Desktop -n force-app/main/default/lwc/myComponent -d /path/to/project_root`,
+        `sfdx force:lightning:lwc:preview -p iOS -t MySimulator -n force-app/main/default/lwc/myComponent -d /path/to/project_root`,
+        `sfdx force:lightning:lwc:preview -p Android -t MyEmulator -n force-app/main/default/lwc/myComponent -d /path/to/project_root`
     ];
 
     private static createError(stringId: string, ...param: any[]): SfError {
@@ -58,7 +58,7 @@ export class Preview extends BaseCommand {
     public static readonly flags = {
         ...CommandLineUtils.createFlag(FlagsConfigType.Json, false),
         ...CommandLineUtils.createFlag(FlagsConfigType.LogLevel, false),
-        ...CommandLineUtils.createFlag(FlagsConfigType.Platform, true),
+        ...CommandLineUtils.createFlag(FlagsConfigType.Platform, true, true),
         componentname: Flags.string({
             char: 'n',
             description: messages.getMessage('componentnameFlagDescription'),
@@ -67,7 +67,8 @@ export class Preview extends BaseCommand {
         configfile: Flags.string({
             char: 'f',
             description: messages.getMessage('configFileFlagDescription'),
-            required: false
+            required: false,
+            default: ''
         }),
         confighelp: Flags.boolean({
             default: false,
@@ -77,24 +78,23 @@ export class Preview extends BaseCommand {
         projectdir: Flags.string({
             char: 'd',
             description: messages.getMessage('projectDirFlagDescription'),
-            required: false
+            required: false,
+            default: process.cwd()
         }),
         target: Flags.string({
             char: 't',
             description: messages.getMessage('targetFlagDescription'),
-            required: false
+            required: false,
+            default: 'sfdxdebug'
         }),
         targetapp: Flags.string({
             char: 'a',
             description: messages.getMessage('targetAppFlagDescription'),
-            required: false
+            required: false,
+            default: PreviewUtils.BROWSER_TARGET_APP
         })
     };
 
-    // Set this to true if your command requires a project workspace; 'requiresProject' is false by default
-    public static requiresProject = false;
-
-    private serverPort = '';
     private deviceName = '';
     private componentName = '';
     private targetApp = '';
@@ -116,7 +116,6 @@ export class Preview extends BaseCommand {
                     const message = messages.getMessage(
                         'configFileHelpDescription'
                     );
-                    // tslint:disable-next-line: no-console
                     console.log(`${message}`);
                     return Promise.resolve();
                 } else {
@@ -140,6 +139,10 @@ export class Preview extends BaseCommand {
     }
 
     protected populateCommandRequirements(): void {
+        if (CommandLineUtils.platformFlagIsDesktop(this.flagValues.platform)) {
+            return;
+        }
+
         const requirements: CommandRequirements = {};
 
         requirements.setup = CommandLineUtils.platformFlagIsAndroid(
@@ -150,55 +153,20 @@ export class Preview extends BaseCommand {
                   this.flagValues.apilevel
               )
             : new IOSEnvironmentRequirements(this.logger);
-
-        requirements.preview = {
-            requirements: [
-                new LwcServerPluginInstalledRequirement(this.logger),
-                new LwcServerIsRunningRequirement(this.logger)
-            ],
-            enabled: this.useLwcServerForPreviewing()
-        };
-
         this._commandRequirements = requirements;
     }
 
-    // TODO: Preview command takes quite a few command flags/parameters compared to other commands.
-    //       Furthermore, the flags need to be processed more than in other commands which
-    //       makes validating them at flagConfig's "validate" method more difficult.
-    //
-    //       In the future refactoring we should seek to simplify validateInputParameters so that
-    //       we can take advantage of flagConfig's "validate".
     private async validateInputParameters(): Promise<void> {
-        const defaultDeviceName = CommandLineUtils.platformFlagIsIOS(
-            this.flagValues.platform
-        )
-            ? PlatformConfig.iOSConfig().defaultSimulatorName
-            : PlatformConfig.androidConfig().defaultEmulatorName;
-
-        this.deviceName = CommandLineUtils.resolveFlag(
-            this.flagValues.target,
-            defaultDeviceName
-        );
-
-        this.componentName = CommandLineUtils.resolveFlag(
-            this.flagValues.componentname,
-            ''
-        ).trim();
-
-        this.targetApp = CommandLineUtils.resolveFlag(
-            this.flagValues.targetapp,
-            PreviewUtils.BROWSER_TARGET_APP
-        );
+        this.deviceName = (this.flagValues.target as string).trim();
+        this.componentName = (this.flagValues.componentname as string).trim();
+        this.targetApp = (this.flagValues.targetapp as string).trim();
 
         this.projectDir = CommonUtils.resolveUserHomePath(
-            CommandLineUtils.resolveFlag(
-                this.flagValues.projectdir,
-                process.cwd()
-            )
+            (this.flagValues.projectdir as string).trim()
         );
 
         const configFileName = CommonUtils.resolveUserHomePath(
-            CommandLineUtils.resolveFlag(this.flagValues.configfile, '')
+            (this.flagValues.configfile as string).trim()
         );
 
         this.configFilePath = path.normalize(
@@ -213,6 +181,15 @@ export class Preview extends BaseCommand {
         );
 
         this.logger.debug('Validating Preview command inputs.');
+
+        if (
+            CommandLineUtils.platformFlagIsDesktop(this.flagValues.target) &&
+            !isBrowserTargetApp
+        ) {
+            return Promise.reject(
+                Preview.createError('error:invalidTargetAppForDesktop')
+            );
+        }
 
         // check if user provided a config file when targetapp=browser
         // and warn them that the config file will be ignored.
@@ -279,19 +256,7 @@ export class Preview extends BaseCommand {
             }
         }
 
-        if (this.useLwcServerForPreviewing()) {
-            const port = await CommonUtils.getLwcServerPort();
-            this.serverPort = port ? port : CommonUtils.DEFAULT_LWC_SERVER_PORT;
-        }
-
         return Promise.resolve();
-    }
-
-    private useLwcServerForPreviewing(): boolean {
-        return PreviewUtils.useLwcServerForPreviewing(
-            this.targetApp,
-            this.appConfig
-        );
     }
 
     private async launchPreview(): Promise<void> {
@@ -320,7 +285,11 @@ export class Preview extends BaseCommand {
             }
         }
 
-        if (CommandLineUtils.platformFlagIsIOS(this.flagValues.platform)) {
+        if (CommandLineUtils.platformFlagIsDesktop(this.flagValues.platform)) {
+            return this.launchDesktop(this.componentName, this.projectDir);
+        } else if (
+            CommandLineUtils.platformFlagIsIOS(this.flagValues.platform)
+        ) {
             const config =
                 this.appConfig && (this.appConfig as IOSAppPreviewConfig);
             return this.launchIOS(
@@ -329,8 +298,7 @@ export class Preview extends BaseCommand {
                 this.projectDir,
                 appBundlePath,
                 this.targetApp,
-                config,
-                this.serverPort
+                config
             );
         } else {
             const config =
@@ -341,10 +309,21 @@ export class Preview extends BaseCommand {
                 this.projectDir,
                 appBundlePath,
                 this.targetApp,
-                config,
-                this.serverPort
+                config
             );
         }
+    }
+
+    private async launchDesktop(
+        componentName: string,
+        projectDir: string
+    ): Promise<void> {
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                CommonUtils.launchUrlInDesktopBrowser(
+                    `http://localhost:${serverPort}`
+                )
+        );
     }
 
     private async launchIOS(
@@ -353,18 +332,21 @@ export class Preview extends BaseCommand {
         projectDir: string,
         appBundlePath: string | undefined,
         targetApp: string,
-        appConfig: IOSAppPreviewConfig | undefined,
-        serverPort: string
+        appConfig: IOSAppPreviewConfig | undefined
     ): Promise<void> {
         const launcher = new IOSLauncher(deviceName);
 
-        return launcher.launchPreview(
-            componentName,
-            projectDir,
-            appBundlePath,
-            targetApp,
-            appConfig,
-            serverPort
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                launcher.launchPreview(
+                    componentName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    appConfig,
+                    serverPort,
+                    true
+                )
         );
     }
 
@@ -374,101 +356,21 @@ export class Preview extends BaseCommand {
         projectDir: string,
         appBundlePath: string | undefined,
         targetApp: string,
-        appConfig: AndroidAppPreviewConfig | undefined,
-        serverPort: string
+        appConfig: AndroidAppPreviewConfig | undefined
     ): Promise<void> {
         const launcher = new AndroidLauncher(deviceName);
 
-        return launcher.launchPreview(
-            componentName,
-            projectDir,
-            appBundlePath,
-            targetApp,
-            appConfig,
-            serverPort
+        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
+            (serverPort) =>
+                launcher.launchPreview(
+                    componentName,
+                    projectDir,
+                    appBundlePath,
+                    targetApp,
+                    appConfig,
+                    serverPort,
+                    true
+                )
         );
-    }
-}
-
-// tslint:disable-next-line: max-classes-per-file
-export class LwcServerPluginInstalledRequirement implements Requirement {
-    public title: string;
-    public fulfilledMessage: string;
-    public unfulfilledMessage: string;
-    public logger: Logger;
-
-    constructor(logger: Logger) {
-        this.title = messages.getMessage('reqs:serverInstalled:title');
-        this.fulfilledMessage = messages.getMessage(
-            'reqs:serverInstalled:fulfilledMessage'
-        );
-        this.unfulfilledMessage = messages.getMessage(
-            'reqs:serverInstalled:unfulfilledMessage'
-        );
-        this.logger = logger;
-    }
-
-    public async checkFunction(): Promise<string> {
-        return (
-            CommonUtils.isLwcServerPluginInstalled()
-                .then(() => {
-                    this.logger.info('sfdx server plugin detected.');
-                    return Promise.resolve(this.fulfilledMessage);
-                })
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                .catch((error) => {
-                    this.logger.info('sfdx server plugin was not detected.');
-
-                    try {
-                        const command =
-                            'sfdx plugins:install @salesforce/lwc-dev-server';
-                        this.logger.info(
-                            `Installing sfdx server plugin.... ${command}`
-                        );
-                        CommonUtils.executeCommandSync(command, [
-                            'inherit',
-                            'pipe',
-                            'inherit'
-                        ]);
-                        this.logger.info('sfdx server plugin installed.');
-                        return Promise.resolve(this.fulfilledMessage);
-                    } catch (error) {
-                        this.logger.error(
-                            `sfdx server plugin installation failed. ${error}`
-                        );
-                        return Promise.reject(
-                            new SfError(this.unfulfilledMessage)
-                        );
-                    }
-                })
-        );
-    }
-}
-
-// tslint:disable-next-line: max-classes-per-file
-export class LwcServerIsRunningRequirement implements Requirement {
-    public title: string = messages.getMessage('reqs:serverStarted:title');
-    public fulfilledMessage: string = messages.getMessage(
-        'reqs:serverStarted:fulfilledMessage'
-    );
-    public unfulfilledMessage: string = messages.getMessage(
-        'reqs:serverStarted:unfulfilledMessage'
-    );
-    public logger: Logger;
-
-    constructor(logger: Logger) {
-        this.logger = logger;
-    }
-
-    public async checkFunction(): Promise<string> {
-        return CommonUtils.getLwcServerPort().then((port) => {
-            if (!port) {
-                return Promise.reject(this.unfulfilledMessage);
-            } else {
-                return Promise.resolve(
-                    util.format(this.fulfilledMessage, port)
-                );
-            }
-        });
     }
 }

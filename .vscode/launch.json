@@ -111,9 +111,11 @@
                 "-p",
                 "iOS",
                 "-n",
-                "c/helloWorld",
+                "force-app/main/default/lwc/helloWorld",
                 "-t",
-                "sfdxdebug"
+                "sfdxdebug",
+                "-d",
+                "~/LWC-Mobile-Samples/HelloWorld"
             ]
         },
         {
@@ -127,9 +129,27 @@
                 "-p",
                 "android",
                 "-n",
-                "c/helloWorld",
+                "force-app/main/default/lwc/helloWorld",
                 "-t",
-                "sfdxdebug"
+                "sfdxdebug",
+                "-d",
+                "~/LWC-Mobile-Samples/HelloWorld"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Preview - Desktop",
+            "console": "integratedTerminal",
+            "program": "${workspaceFolder}/bin/run",
+            "args": [
+                "force:lightning:lwc:preview",
+                "-p",
+                "desktop",
+                "-n",
+                "force-app/main/default/lwc/helloWorld",
+                "-d",
+                "~/LWC-Mobile-Samples/HelloWorld"
             ]
         },
         {

@@ -17,15 +17,14 @@ import {
     RequirementProcessor
 } from '@salesforce/lwc-dev-mobile-core';
 import fs from 'fs';
-import {
-    LwcServerIsRunningRequirement,
-    LwcServerPluginInstalledRequirement,
-    Preview
-} from '../preview';
+import { Preview } from '../preview';
+import { LwrServerUtils } from '../../../../../../common/LwrServerUtils';
 
 Messages.importMessagesDirectory(__dirname);
 
 describe('Preview Tests', () => {
+    const defaultServerPort = '3000';
+
     const sampleConfigFile = `
     {
         "apps": {
@@ -71,6 +70,10 @@ describe('Preview Tests', () => {
 
         iosLaunchPreview = jest.fn(() => Promise.resolve());
         androidLaunchPreview = jest.fn(() => Promise.resolve());
+
+        jest.spyOn(LwrServerUtils, 'startLwrServer').mockImplementation(() =>
+            Promise.resolve(defaultServerPort)
+        );
 
         jest.spyOn(RequirementProcessor, 'execute').mockImplementation(
             passedSetupMock
@@ -142,91 +145,6 @@ describe('Preview Tests', () => {
         expect(failedSetupMock).toHaveBeenCalled();
     });
 
-    test('Preview should throw an error if server is not installed', async () => {
-        const logger = new Logger('test-preview');
-        const cmdMock = jest.fn(
-            (): Promise<{ stdout: string; stderr: string }> =>
-                Promise.reject(new Error('test error'))
-        );
-
-        jest.spyOn(CommonUtils, 'executeCommandAsync').mockImplementation(
-            cmdMock
-        );
-        jest.spyOn(CommonUtils, 'executeCommandSync').mockImplementation(() => {
-            throw new Error('test error');
-        });
-
-        const requirement = new LwcServerPluginInstalledRequirement(logger);
-        requirement
-            .checkFunction()
-            .then(() => fail('should have thrown an error'))
-            // tslint:disable-next-line: no-empty
-            .catch((error) => {
-                expect(error.message).toBe(
-                    messages.getMessage(
-                        'reqs:serverInstalled:unfulfilledMessage'
-                    )
-                );
-            });
-    });
-
-    test('Preview should throw an error if server is not running', async () => {
-        const logger = new Logger('test-preview');
-        const cmdMock = jest.fn(
-            (): Promise<{ stdout: string; stderr: string }> =>
-                Promise.reject(new Error('test error'))
-        );
-
-        jest.spyOn(CommonUtils, 'executeCommandAsync').mockImplementation(
-            cmdMock
-        );
-        const requirement = new LwcServerIsRunningRequirement(logger);
-        requirement
-            .checkFunction()
-            .then(() => fail('should have thrown an error'))
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            .catch(() => {});
-    });
-
-    test('Preview should default to use server port 3333', async () => {
-        const logger = new Logger('test-preview');
-        const cmdMock = jest.fn(
-            (): Promise<{ stdout: string; stderr: string }> =>
-                Promise.resolve({
-                    stderr: '',
-                    stdout: 'path/to/bin/node /path/to/bin/sfdx.js force:lightning:lwc:start'
-                })
-        );
-
-        jest.spyOn(CommonUtils, 'executeCommandAsync').mockImplementation(
-            cmdMock
-        );
-        const requirement = new LwcServerIsRunningRequirement(logger);
-        const portMessage = (await requirement.checkFunction()).trim();
-        const port = portMessage.match(/\d+/);
-        expect(port !== null && port[0] === '3333').toBe(true);
-    });
-
-    test('Preview should use specified server port', async () => {
-        const logger = new Logger('test-preview');
-        const specifiedPort = '3456';
-        const cmdMock = jest.fn(
-            (): Promise<{ stdout: string; stderr: string }> =>
-                Promise.resolve({
-                    stderr: '',
-                    stdout: `path/to/bin/node /path/to/bin/sfdx.js force:lightning:lwc:start -p ${specifiedPort}`
-                })
-        );
-
-        jest.spyOn(CommonUtils, 'executeCommandAsync').mockImplementation(
-            cmdMock
-        );
-        const requirement = new LwcServerIsRunningRequirement(logger);
-        const portMessage = (await requirement.checkFunction()).trim();
-        const port = portMessage.match(/\d+/);
-        expect(port !== null && port[0] === specifiedPort).toBe(true);
-    });
-
     test('Attempts to launch preview for native app', async () => {
         const preview = makePreview(
             'compname',
@@ -266,7 +184,8 @@ describe('Preview Tests', () => {
             '/path/to/app/bundle',
             'com.salesforce.test',
             appConfig,
-            '3333'
+            defaultServerPort,
+            true
         );
     });
 
