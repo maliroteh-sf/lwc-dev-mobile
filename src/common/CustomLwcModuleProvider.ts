@@ -49,14 +49,6 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
         this.moduleMap = this.generateSfdxComponentsMap(originalRootDir);
     }
 
-    /*async createModuleEntry(
-        moduleId: AbstractModuleId
-    ): Promise<ModuleEntry | undefined> {
-        // Resolve dependencies and create module relative to our plug-in path
-        const newModuleId = { ...moduleId, importer: lwcDevMobilePath };
-        return super.createModuleEntry(newModuleId);
-    }*/
-
     async getModuleEntry(
         moduleId: AbstractModuleId
     ): Promise<ModuleEntry | undefined> {

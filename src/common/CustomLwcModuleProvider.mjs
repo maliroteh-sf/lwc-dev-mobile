@@ -8,10 +8,6 @@
 // @ts-check
 
 import LwcModuleProvider from '@lwrjs/lwc-module-provider';
-/*import {
-    nestedModulesNamespace,
-    nestedModulesNamespaceAlias
-} from './LwrServerUtils.js';*/
 import fastGlob from 'fast-glob';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -51,27 +47,6 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
 
         this.moduleMap = this.generateSfdxComponentsMap(originalRootDir);
     }
-
-    /**
-     * @param {import("@lwrjs/types").AbstractModuleId} moduleId
-     * @returns {Promise<import("@lwrjs/types").ModuleEntry | undefined>}
-     */
-    /*async createModuleEntry(moduleId) {
-        // Resolve dependencies and create module relative to our plug-in path
-        const newModuleId = { ...moduleId, importer: lwcDevMobilePath };
-
-        if (
-            newModuleId.specifier.startsWith(nestedModulesNamespace) &&
-            nestedModulesNamespaceAlias
-        ) {
-            newModuleId.specifier = newModuleId.specifier.replace(
-                nestedModulesNamespace,
-                nestedModulesNamespaceAlias
-            );
-        }
-
-        return super.createModuleEntry(newModuleId);
-    }*/
 
     /**
      * @param {import("@lwrjs/types").AbstractModuleId} moduleId
@@ -143,31 +118,6 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
         } catch {
             // ignore and continue
         }
-
-        /*const indexesPath = path.resolve(rootDir, '.sfdx', 'indexes');
-        if (fs.existsSync(indexesPath)) {
-            const indexes = fs.readdirSync(indexesPath);
-            indexes.forEach((idx) => {
-                const customComps = path.resolve(
-                    indexesPath,
-                    idx,
-                    'custom-components.json'
-                );
-                if (fs.existsSync(customComps)) {
-                    const fileContent = fs.readFileSync(customComps, 'utf8');
-                    const json = JSON.parse(fileContent);
-                    if (Array.isArray(json)) {
-                        json.forEach((item) => {
-                            if (item.file && fs.existsSync(item.file)) {
-                                const d = path.dirname(item.file);
-                                const n = path.basename(d);
-                                map.set(n, d);
-                            }
-                        });
-                    }
-                }
-            });
-        }*/
 
         return map;
     }

@@ -7,40 +7,15 @@
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
 import path from 'path';
 
-/*const vpod_cli_direct = {
-    ACCESS_TOKEN:
-        '00Dx0000000BXRX!AREAQBCl5K.mRI6yP0UfOCZP7nElAV44reRfFd.DYL4.2EzTIBLSwJllXljstXv39xZRLTZt5ReWLZ6qMveXqHGM_MTbHZR0',
-    INSTANCE_URL: 'https://corsa04-basic-2015849972.vpod.t.force.com',
-    ID: 'https://corsa04-basic-2015849972.vpod.t.force.com/id/00Dx0000000BXRXEA4/005x0000000xNhqAAE',
-    LOGIN_SERVER: 'https://corsa04-basic-2015849972.vpod.t.force.com'
-};
-const vpod_sfs_loginflow = {
-    LOGIN_SERVER: 'https://corsa04-basic-2015849972.vpod.t.force.com',
-    CLIENT_KEY: 'SfdcFieldServiceAndroid',
-    CLIENT_SECRET: '14217314840576653',
-    USERNAME: 'admin@fs.com', //'perfuser@lfs.com',
-    PASSWORD: '123456'
-};
-
-const trailhead_cli_direct = {
-    ACCESS_TOKEN:
-        '00D8b0000038gP3!ARcAQMqAIg7_zg6foNSHLQjU0xbu7HQsNaPY8IIjaRsYtgdk8y8sZpWLHpHBiFIsNCChoXGtKokGstgpHEgYcW7rcKZLSApq',
-    INSTANCE_URL:
-        'https://brave-moose-6zrvpd-dev-ed.trailblaze.my.salesforce.com',
-    ID: 'https://brave-moose-6zrvpd-dev-ed.trailblaze.my.salesforce.com/00D8b0000038gP3EAI/0058b00000I1g8fAAB',
-    LOGIN_SERVER: 'https://login.salesforce.com'
-};*/
-
-/*export const nestedModulesNamespace = 'c/';
-export let nestedModulesNamespaceAlias = '';*/
-
 export class LwrServerUtils {
     public static DEFAULT_SERVER_PORT = 3000;
+    public static DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES = 15;
 
     public static async startLwrServer(
         componentName: string,
         projectDir: string,
-        serverIdleTimeoutMinutes: number = 30
+        serverIdleTimeoutMinutes: number = this
+            .DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES
     ): Promise<string> {
         const rootDirectory = path.resolve(projectDir);
 
@@ -57,37 +32,12 @@ export class LwrServerUtils {
             .replace(`${twoLevelUp}${path.sep}`, '')
             .replace(/\\/gi, '/');
 
-        /*const parts = rootComp.split('/');
-        nestedModulesNamespaceAlias = parts.length ? `${parts[0]}/` : '';*/
-
         // e.g: lwc-helloWorld
         const rootCompDashed = rootComp.replace(/\//gi, '-');
 
         process.env.ROOT_DIR = rootDirectory;
         process.env.MODULES_DIR = twoLevelUp;
         process.env.ROOT_COMPONENT = rootCompDashed;
-
-        /*const src = vpod_cli_direct; //trailhead_cli_direct;
-
-        process.env.LOGIN_SERVER = src.LOGIN_SERVER;
-
-        process.env.ACCESS_TOKEN = src.ACCESS_TOKEN;
-        process.env.INSTANCE_URL = src.INSTANCE_URL;
-        process.env.ID = src.ID;*/
-
-        /*process.env.CLIENT_KEY = src.CLIENT_KEY;
-        process.env.CLIENT_SECRET = src.CLIENT_SECRET;
-        process.env.USERNAME = src.USERNAME;
-        process.env.PASSWORD = src.PASSWORD;*/
-
-        /*console.log('--------------------------------------');
-        console.log(`process.env.LOGIN_SERVER = ${process.env.LOGIN_SERVER}`);
-        console.log(`process.env.ACCESS_TOKEN = ${process.env.ACCESS_TOKEN}`);
-        console.log(`process.env.INSTANCE_URL = ${process.env.INSTANCE_URL}`);
-        console.log(`process.env.ID = ${process.env.ID}`);
-        console.log('--------------------------------------');*/
-
-        //process.env.LDS_DIR = '';
         process.env.SERVICE_WORKER = 'true';
         process.env.BEHIND_PROXY = 'true';
         process.env.MODE = 'dev';
