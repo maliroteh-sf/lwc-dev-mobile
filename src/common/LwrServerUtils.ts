@@ -45,29 +45,7 @@ export class LwrServerUtils {
         process.env.SERVER_PORT =
             LwrServerUtils.getNextAvailablePort().toString();
 
-        // Need to import like this otherwise we get the following error:
-        //     [ERR_REQUIRE_ESM]: require() of ES Module lwr-lightning-platform/src/index.mjs not supported.
-        //      Instead change the require of lwr-lightning-platform/src/index.mjs to a dynamic import() which is available in all CommonJS modules.
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore : ignore "Could not find a declaration file for module 'lwr-lightning-platform'"
-        const lwrlp = await import('lwr-lightning-platform');
-        const lwrConfig = await lwrlp.buildLwrConfig('harness');
-        lwrConfig.moduleProviders.unshift(
-            path.resolve(`${__dirname}/CustomLwcModuleProvider.mjs`)
-        );
-
-        const lwrApp = await lwrlp.createApp(lwrConfig);
-        const runtimeConfig = lwrApp.getConfig();
-
-        return lwrApp
-            .listen(() => {
-                console.log(
-                    `Listening on port ${runtimeConfig.port} in mode ${runtimeConfig.serverMode}`
-                );
-            })
-            .then(() => {
-                return Promise.resolve(`${runtimeConfig.port}`);
-            });
+        return LwrServerUtils.doStartLwrApp();
     }
 
     /**
@@ -105,5 +83,32 @@ export class LwrServerUtils {
         }
 
         return port;
+    }
+
+    // Helper method to launch an LWR app server (done this way so that we can more easily unit test LwrServerUtils).
+    public static async doStartLwrApp(): Promise<string> {
+        // Need to import like this otherwise we get the following error:
+        //     [ERR_REQUIRE_ESM]: require() of ES Module lwr-lightning-platform/src/index.mjs not supported.
+        //      Instead change the require of lwr-lightning-platform/src/index.mjs to a dynamic import() which is available in all CommonJS modules.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore : ignore "Could not find a declaration file for module 'lwr-lightning-platform'"
+        const lwrlp = await import('lwr-lightning-platform');
+        const lwrConfig = await lwrlp.buildLwrConfig('harness');
+        lwrConfig.moduleProviders.unshift(
+            path.resolve(`${__dirname}/CustomLwcModuleProvider.mjs`)
+        );
+
+        const lwrApp = await lwrlp.createApp(lwrConfig);
+        const runtimeConfig = lwrApp.getConfig();
+
+        return lwrApp
+            .listen(() => {
+                console.log(
+                    `Listening on port ${runtimeConfig.port} in mode ${runtimeConfig.serverMode}`
+                );
+            })
+            .then(() => {
+                return Promise.resolve(`${runtimeConfig.port}`);
+            });
     }
 }
