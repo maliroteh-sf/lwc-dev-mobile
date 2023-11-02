@@ -8,7 +8,7 @@ process.env['SFDX_ENV'] = 'test'; // run sfdx in test mode when running unit tes
 
 import { Config } from '@oclif/core/lib/config';
 import { Options } from '@oclif/core/lib/interfaces';
-import { Logger, Messages, SfError } from '@salesforce/core';
+import { Messages, SfError } from '@salesforce/core';
 import {
     AndroidLauncher,
     CommonUtils,
@@ -190,11 +190,9 @@ describe('Preview Tests', () => {
     });
 
     test('Logger must be initialized and invoked', async () => {
-        const logger = new Logger('test-preview');
-        const loggerSpy = jest.spyOn(logger, 'info');
-        jest.spyOn(Logger, 'child').mockReturnValue(Promise.resolve(logger));
         const preview = makePreview('compname', 'android', 'sfdxdebug');
         await preview.init();
+        const loggerSpy = jest.spyOn(preview.logger, 'info');
         await preview.run();
         expect(loggerSpy).toHaveBeenCalled();
     });

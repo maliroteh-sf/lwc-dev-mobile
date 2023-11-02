@@ -1,7 +1,7 @@
 {
   "name": "@salesforce/lwc-dev-mobile",
   "description": "Salesforce CLI plugin for mobile extensions to Local Development",
-  "version": "2.3.0-alpha.1",
+  "version": "2.3.0-alpha.2",
   "author": {
     "name": "Raj Rao",
     "email": "rao.r@salesforce.com",
@@ -35,7 +35,7 @@
     "@oclif/plugin-version": "^2.0.3",
     "@salesforce/core": "^5.3.12",
     "@salesforce/sf-plugins-core": "^4.0.0",
-    "@salesforce/lwc-dev-mobile-core": "^3.3.0",
+    "@salesforce/lwc-dev-mobile-core": "^3.3.1",
     "chalk": "^4.1.2",
     "fast-glob": "^3.3.1",
     "lwc": "~3.2.0",

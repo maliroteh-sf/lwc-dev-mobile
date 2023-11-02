@@ -5,6 +5,7 @@
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
 
+import { Logger } from '@salesforce/core';
 import { LwrServerUtils } from '../LwrServerUtils';
 
 describe('LwrServerUtils Tests', () => {
@@ -20,6 +21,7 @@ describe('LwrServerUtils Tests', () => {
         );
 
         const port = await LwrServerUtils.startLwrServer(
+            new Logger('test'),
             'force-app/main/default/lwc/helloWorld',
             '/LWC-Mobile-Samples/HelloWorld'
         );

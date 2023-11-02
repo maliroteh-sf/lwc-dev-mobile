@@ -8,6 +8,7 @@
 // @ts-check
 
 import LwcModuleProvider from '@lwrjs/lwc-module-provider';
+import { previewLogger } from './LwrServerUtils.js';
 import fastGlob from 'fast-glob';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -46,6 +47,16 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
         super(options, newContext);
 
         this.moduleMap = this.generateSfdxComponentsMap(originalRootDir);
+
+        const obj = {};
+        for (let [k, v] of this.moduleMap) {
+            obj[k] = v;
+        }
+
+        previewLogger?.debug(
+            '\n*************** In-Memory Module Map ***************\n' +
+                JSON.stringify(obj, null, '  ')
+        );
     }
 
     /**

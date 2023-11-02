@@ -7,7 +7,6 @@
 
 import { Config } from '@oclif/core/lib/config';
 import { Options } from '@oclif/core/lib/interfaces';
-import { Logger } from '@salesforce/core';
 import {
     AndroidVirtualDevice,
     AndroidUtils,
@@ -116,14 +115,12 @@ describe('List Tests', () => {
     });
 
     test('Logger must be initialized and invoked', async () => {
-        const logger = new Logger('test-logger');
-        const loggerSpy = jest.spyOn(logger, 'info');
-        jest.spyOn(Logger, 'child').mockReturnValue(Promise.resolve(logger));
         jest.spyOn(AndroidUtils, 'fetchEmulators').mockImplementation(
             fetchEmulatorsMock
         );
         const list = makeList('android');
         await list.init();
+        const loggerSpy = jest.spyOn(list.logger, 'info');
         await list.run();
         expect(loggerSpy).toHaveBeenCalled();
     });

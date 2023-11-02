@@ -4,19 +4,26 @@
  * SPDX-License-Identifier: MIT
  * For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/MIT
  */
-import { CommonUtils } from '@salesforce/lwc-dev-mobile-core/lib/common/CommonUtils';
+
+import { Logger } from '@salesforce/core';
+import { CommonUtils } from '@salesforce/lwc-dev-mobile-core';
 import path from 'path';
+
+export let previewLogger: Logger | undefined;
 
 export class LwrServerUtils {
     public static DEFAULT_SERVER_PORT = 3000;
     public static DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES = 15;
 
     public static async startLwrServer(
+        logger: Logger,
         componentName: string,
         projectDir: string,
         serverIdleTimeoutMinutes: number = this
             .DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES
     ): Promise<string> {
+        previewLogger = logger;
+
         const rootDirectory = path.resolve(projectDir);
 
         // e.g: /LWC-Mobile-Samples/HelloWorld/force-app/main/default/lwc/helloWorld
@@ -44,6 +51,16 @@ export class LwrServerUtils {
         process.env.SERVER_IDLE_TIMEOUT_MINUTES = `${serverIdleTimeoutMinutes}`;
         process.env.SERVER_PORT =
             LwrServerUtils.getNextAvailablePort().toString();
+
+        previewLogger?.debug(
+            '\n*** Attempting to preview LWC ***\n' +
+                `componentName = ${componentName}\n` +
+                `projectDir = ${projectDir}\n` +
+                `componentFullPath = ${componentFullPath}\n` +
+                `ROOT_DIR = ${process.env.ROOT_DIR}\n` +
+                `MODULES_DIR = ${process.env.MODULES_DIR}\n` +
+                `ROOT_COMPONENT = ${process.env.ROOT_COMPONENT}`
+        );
 
         return LwrServerUtils.doStartLwrApp();
     }
@@ -100,6 +117,11 @@ export class LwrServerUtils {
 
         const lwrApp = await lwrlp.createApp(lwrConfig);
         const runtimeConfig = lwrApp.getConfig();
+
+        previewLogger?.debug(
+            '\n*************** In-Memory LWR Server Config ***************\n' +
+                JSON.stringify(runtimeConfig, null, '  ')
+        );
 
         return lwrApp
             .listen(() => {

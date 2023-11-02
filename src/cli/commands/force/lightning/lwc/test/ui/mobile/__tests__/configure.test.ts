@@ -7,7 +7,7 @@
 
 import { Config } from '@oclif/core/lib/config';
 import { Options } from '@oclif/core/lib/interfaces';
-import { Logger, Messages, SfError } from '@salesforce/core';
+import { Messages, SfError } from '@salesforce/core';
 import {
     AndroidVirtualDevice,
     AndroidUtils,
@@ -310,16 +310,12 @@ describe('Mobile UI Test Configuration Tests', () => {
     });
 
     test('Logger must be initialized and invoked', async () => {
-        const logger = new Logger('test-logger');
-        const loggerSpy = jest.spyOn(logger, 'info');
-        jest.spyOn(Logger, 'child').mockReturnValue(Promise.resolve(logger));
-
         const cmd = createCommand({
             platform: 'ios',
             deviceName: 'iPhone 8'
         });
-
         await cmd.init();
+        const loggerSpy = jest.spyOn(cmd.logger, 'info');
         await cmd.run();
         expect(loggerSpy).toHaveBeenCalled();
     });

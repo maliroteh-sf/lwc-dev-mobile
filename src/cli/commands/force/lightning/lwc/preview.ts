@@ -318,11 +318,14 @@ export class Preview extends BaseCommand {
         componentName: string,
         projectDir: string
     ): Promise<void> {
-        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
-            (serverPort) =>
-                CommonUtils.launchUrlInDesktopBrowser(
-                    `http://localhost:${serverPort}`
-                )
+        return LwrServerUtils.startLwrServer(
+            this.logger,
+            componentName,
+            projectDir
+        ).then((serverPort) =>
+            CommonUtils.launchUrlInDesktopBrowser(
+                `http://localhost:${serverPort}`
+            )
         );
     }
 
@@ -336,17 +339,20 @@ export class Preview extends BaseCommand {
     ): Promise<void> {
         const launcher = new IOSLauncher(deviceName);
 
-        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
-            (serverPort) =>
-                launcher.launchPreview(
-                    componentName,
-                    projectDir,
-                    appBundlePath,
-                    targetApp,
-                    appConfig,
-                    serverPort,
-                    true
-                )
+        return LwrServerUtils.startLwrServer(
+            this.logger,
+            componentName,
+            projectDir
+        ).then((serverPort) =>
+            launcher.launchPreview(
+                componentName,
+                projectDir,
+                appBundlePath,
+                targetApp,
+                appConfig,
+                serverPort,
+                true
+            )
         );
     }
 
@@ -360,17 +366,20 @@ export class Preview extends BaseCommand {
     ): Promise<void> {
         const launcher = new AndroidLauncher(deviceName);
 
-        return LwrServerUtils.startLwrServer(componentName, projectDir).then(
-            (serverPort) =>
-                launcher.launchPreview(
-                    componentName,
-                    projectDir,
-                    appBundlePath,
-                    targetApp,
-                    appConfig,
-                    serverPort,
-                    true
-                )
+        return LwrServerUtils.startLwrServer(
+            this.logger,
+            componentName,
+            projectDir
+        ).then((serverPort) =>
+            launcher.launchPreview(
+                componentName,
+                projectDir,
+                appBundlePath,
+                targetApp,
+                appConfig,
+                serverPort,
+                true
+            )
         );
     }
 }

@@ -7,7 +7,6 @@
 
 import { Config } from '@oclif/core/lib/config';
 import { Options } from '@oclif/core/lib/interfaces';
-import { Logger } from '@salesforce/core';
 import {
     AndroidUtils,
     CommonUtils,
@@ -116,10 +115,6 @@ describe('Start Tests', () => {
     });
 
     test('Logger must be initialized and invoked', async () => {
-        const logger = new Logger('test-logger');
-        const loggerSpy = jest.spyOn(logger, 'info');
-        jest.spyOn(Logger, 'child').mockReturnValue(Promise.resolve(logger));
-
         const bootDeviceMock = jest.fn(() => Promise.resolve());
         const launchSimulatorAppMock = jest.fn(() => Promise.resolve());
 
@@ -135,6 +130,7 @@ describe('Start Tests', () => {
 
         const start = makeStart('iOS', targetName);
         await start.init();
+        const loggerSpy = jest.spyOn(start.logger, 'info');
         await start.run();
         expect(loggerSpy).toHaveBeenCalled();
     });
