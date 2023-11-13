@@ -116,7 +116,7 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
             const pkgPattern =
                 paths.length === 1 ? paths[0] : `{${paths.join()}}`;
             const sfdxSource = path.normalize(
-                `${rootDir}/${pkgPattern}/**/*/lwc/**/*.js`
+                `${rootDir}/${pkgPattern}/**/*/lwc/**/*.js` // *.{js,css}
             );
             const files = fastGlob.sync(sfdxSource);
             files.forEach((item) => {
