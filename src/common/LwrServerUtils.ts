@@ -7,6 +7,7 @@
 
 import { Logger } from '@salesforce/core';
 import { CommonUtils } from '@salesforce/lwc-dev-mobile-core';
+import express from 'express';
 import path from 'path';
 
 export let previewLogger: Logger | undefined;
@@ -112,11 +113,20 @@ export class LwrServerUtils {
         const lwrlp = await import('lwr-lightning-platform');
         const lwrConfig = await lwrlp.buildLwrConfig('harness');
         lwrConfig.moduleProviders.unshift(
+            path.resolve(`${__dirname}/ResourceModuleProvider.mjs`)
+        );
+        lwrConfig.moduleProviders.unshift(
             path.resolve(`${__dirname}/CustomLwcModuleProvider.mjs`)
         );
 
         const lwrApp = await lwrlp.createApp(lwrConfig);
         const runtimeConfig = lwrApp.getConfig();
+        const expressServer = lwrApp.getInternalServer();
+
+        // Files for static resources would be served from disk relative to project root dir
+        expressServer.use(
+            express.static(path.resolve(runtimeConfig.rootDir ?? ''))
+        );
 
         previewLogger?.debug(
             '\n*************** In-Memory LWR Server Config ***************\n' +
