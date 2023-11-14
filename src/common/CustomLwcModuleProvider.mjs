@@ -68,21 +68,34 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
         const newModuleId = { ...moduleId, importer: lwcDevMobilePath };
 
         if (newModuleId.specifier.startsWith(__nestedModulesNamespace)) {
-            const [baseSpecifier, fileRelativePath] =
-                moduleId.specifier.split('#'); // specifier can be relative path
-
-            const directoryname = this.moduleMap.get(
-                baseSpecifier.replace(__nestedModulesNamespace, '')
+            const parts = moduleId.specifier.split('#'); // specifier can be relative path e.g: c/mycomponent#mycomponent.html
+            const baseSpecifier = parts[0].replace(
+                __nestedModulesNamespace,
+                ''
             );
+            const fileRelativePath = parts.length > 1 ? parts[1] : undefined;
+            const directoryname = this.moduleMap.get(baseSpecifier);
 
             if (directoryname) {
-                const name = newModuleId.specifier.replace(
+                let name = newModuleId.specifier.replace(
                     __nestedModulesNamespace,
                     ''
                 );
+
+                if (!fileRelativePath && name.lastIndexOf('.') === -1) {
+                    // Need to determine if this is a reference to a component with JS code or just a CSS component meant for CSS sharing.
+                    // See https://developer.salesforce.com/docs/platform/lwc/guide/create-components-css-share.html
+                    const fullPath = path.join(directoryname, name);
+                    if (fs.existsSync(`${fullPath}.js`)) {
+                        name = `${name}.js`;
+                    } else if (fs.existsSync(`${fullPath}.css`)) {
+                        name = `${name}.css`;
+                    }
+                }
+
                 const entry = path.join(
                     directoryname,
-                    fileRelativePath || `${name}.js`
+                    fileRelativePath || name
                 );
                 if (entry) {
                     return Promise.resolve({
@@ -116,14 +129,15 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
             const pkgPattern =
                 paths.length === 1 ? paths[0] : `{${paths.join()}}`;
             const sfdxSource = path.normalize(
-                `${rootDir}/${pkgPattern}/**/*/lwc/**/*.js` // *.{js,css}
+                `${rootDir}/${pkgPattern}/**/*/lwc/**/*.js-meta.xml`
             );
             const files = fastGlob.sync(sfdxSource);
             files.forEach((item) => {
                 const data = path.parse(item);
-                if (data.dir.endsWith(data.name)) {
+                const name = data.name.replace('.js-meta', '');
+                if (data.dir.endsWith(name)) {
                     // if directory name is same as file name then it's a component
-                    map.set(data.name, data.dir);
+                    map.set(name, data.dir);
                 }
             });
         } catch {

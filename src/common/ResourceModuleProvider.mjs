@@ -52,7 +52,7 @@ export default class SalesforceResourceProvider {
                     path.extname(moduleId.specifier) ? '' : '.js'
                 }`,
                 specifier: moduleId.specifier,
-                version: this.version,
+                version: this.version
             });
         }
 

@@ -114,7 +114,7 @@
     "build": "yarn clean && tsc",
     "postbuild": "yarn run copy-mjs-files",
     "copy-mjs-files": "cp -f src/common/*.mjs lib/common",
-    "lint": "yarn eslint src --ext js,ts",
+    "lint": "yarn eslint src --ext mjs,js,ts",
     "prepack": "rm -rf lib && tsc -b && yarn copy-mjs-files && oclif manifest && oclif readme",
     "postpack": "rm -f oclif.manifest.json",
     "posttest": "yarn lint",
@@ -123,8 +123,8 @@
     "test:debug": "node --inspect node_modules/.bin/jest src --runInBand",
     "version": "oclif readme && git add README.md",
     "prepare": "husky install",
-    "prettier:write": "prettier --write \"src/**/*.{ts, tsx, js, jsx}\"",
-    "prettier:verify": "prettier --list-different \"src/**/*.{ts, tsx, js, jsx}\""
+    "prettier:write": "prettier --write \"src/**/*.{ts, tsx, mjs, js, jsx}\"",
+    "prettier:verify": "prettier --list-different \"src/**/*.{ts, tsx, mjs, js, jsx}\""
   },
   "husky": {
     "hooks": {
