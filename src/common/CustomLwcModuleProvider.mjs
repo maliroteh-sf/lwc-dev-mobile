@@ -54,7 +54,7 @@ export default class CustomLwcModuleProvider extends LwcModuleProvider {
         }
 
         previewLogger?.debug(
-            '\n*************** In-Memory Module Map ***************\n' +
+            '\n*************** CustomLwcModuleProvider In-Memory Module Map ***************\n' +
                 JSON.stringify(obj, null, '  ')
         );
     }

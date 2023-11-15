@@ -38,6 +38,7 @@
     "@salesforce/lwc-dev-mobile-core": "^3.3.1",
     "chalk": "^4.1.2",
     "fast-glob": "^3.3.2",
+    "fast-xml-parser": "^4.3.2",
     "lwc": "~5.0.0",
     "lwr": "~0.11.3",
     "lwr-lightning-platform": "~0.1.2"

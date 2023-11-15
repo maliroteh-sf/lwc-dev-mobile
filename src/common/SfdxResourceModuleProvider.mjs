@@ -36,7 +36,7 @@ function isResourceUrlScopedModule(id) {
  * the local path for a static resource will be force-app/main/default/staticresources/...
  */
 export default class SalesforceResourceProvider {
-    name = 'salesforce-resource-url-provider';
+    name = 'sfdx-salesforce-resource-url-provider';
     version = '1';
 
     /**
@@ -64,7 +64,6 @@ export default class SalesforceResourceProvider {
      * @returns {Promise<import("@lwrjs/types").ModuleCompiled | undefined>}
      */
     async getModule(moduleId) {
-        // Retrieve the Module Entry
         const moduleEntry = await this.getModuleEntry(moduleId);
         if (!moduleEntry) {
             return Promise.resolve(undefined);

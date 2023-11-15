@@ -113,7 +113,10 @@ export class LwrServerUtils {
         const lwrlp = await import('lwr-lightning-platform');
         const lwrConfig = await lwrlp.buildLwrConfig('harness');
         lwrConfig.moduleProviders.unshift(
-            path.resolve(`${__dirname}/ResourceModuleProvider.mjs`)
+            path.resolve(`${__dirname}/SfdxLabelModuleProvider.mjs`)
+        );
+        lwrConfig.moduleProviders.unshift(
+            path.resolve(`${__dirname}/SfdxResourceModuleProvider.mjs`)
         );
         lwrConfig.moduleProviders.unshift(
             path.resolve(`${__dirname}/CustomLwcModuleProvider.mjs`)
