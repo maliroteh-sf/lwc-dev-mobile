@@ -122,6 +122,11 @@ export class LwrServerUtils {
             path.resolve(`${__dirname}/CustomLwcModuleProvider.mjs`)
         );
 
+        lwrConfig.lwc.modules.unshift({
+            name: '@salesforce/client/formFactor',
+            path: path.resolve(`${__dirname}/formFactor.js`)
+        });
+
         const lwrApp = await lwrlp.createApp(lwrConfig);
         const runtimeConfig = lwrApp.getConfig();
         const expressServer = lwrApp.getInternalServer();

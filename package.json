@@ -114,7 +114,7 @@
     "clean": "yarn rimraf lib dist reports coverage errorShots oclif.manifest.json",
     "build": "yarn clean && tsc",
     "postbuild": "yarn run copy-mjs-files",
-    "copy-mjs-files": "cp -f src/common/*.mjs lib/common",
+    "copy-mjs-files": "cp -f src/common/*.*js lib/common",
     "lint": "yarn eslint src --ext mjs,js,ts",
     "prepack": "rm -rf lib && tsc -b && yarn copy-mjs-files && oclif manifest && oclif readme",
     "postpack": "rm -f oclif.manifest.json",

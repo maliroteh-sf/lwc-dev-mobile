@@ -19,7 +19,8 @@ module.exports = {
         "**/node_modules/**",
         "**/dist/**",
         "**/lib/**",
-        "**/reports/**"
+        "**/reports/**",
+        "**/src/common/formFactor.js"
     ],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
