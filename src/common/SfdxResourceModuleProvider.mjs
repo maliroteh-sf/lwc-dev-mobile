@@ -7,8 +7,7 @@
 
 // @ts-check
 
-// Based off of the resource provider code from
-// https://git.soma.salesforce.com/communities/webruntime/blob/master/packages/%40communities-webruntime/services/src/salesforce-resource-url
+// Based off of the code from https://git.soma.salesforce.com/communities/webruntime/blob/master/packages/%40communities-webruntime/services/src/salesforce-resource-url
 
 import { hashContent } from '@lwrjs/shared-utils';
 import fastGlob from 'fast-glob';
@@ -68,9 +67,14 @@ export default class SalesforceResourceProvider {
         if (!moduleEntry) {
             return Promise.resolve(undefined);
         }
-        const resourceName = moduleId.specifier.split('/')[2].split('.')[0];
-        const resourceFilePath = this.getResourceFilePath(resourceName);
-        const originalSource = `export default "${resourceFilePath}";`;
+        const isContentAsset = moduleId.specifier.startsWith(
+            CONTENT_ASSET_URL_PREFIX
+        );
+        const name = moduleId.specifier.split('/')[2].split('.')[0];
+        const filePath = isContentAsset
+            ? this.getContentAssetFilePath(name)
+            : this.getResourceFilePath(name);
+        const originalSource = `export default "${filePath}";`;
 
         return Promise.resolve({
             id: moduleEntry.id,
@@ -86,20 +90,39 @@ export default class SalesforceResourceProvider {
     }
 
     /**
-     * Given a resource name, resolves it to a file path
-     * @param {string} resourceName
+     * Given a content asset name, resolves it to a file path
+     * @param {string} name
      * @returns {string}
      */
-    getResourceFilePath(resourceName) {
+    getContentAssetFilePath(name) {
+        // As per the LWC documentation at https://developer.salesforce.com/docs/platform/lwc/guide/create-content-assets.html
+        // in a Salesforce DX project, content assets live in the /force-app/main/default/contentassets directory
+        return this.getPath(name, 'force-app/main/default/contentassets');
+    }
+
+    /**
+     * Given a resource name, resolves it to a file path
+     * @param {string} name
+     * @returns {string}
+     */
+    getResourceFilePath(name) {
         // As per the LWC documentation at https://developer.salesforce.com/docs/platform/lwc/guide/create-resources.html
-        // in a Salesforce DX project, static resources live in the /force-app/main/default/staticresources directory.
+        // in a Salesforce DX project, static resources live in the /force-app/main/default/staticresources directory
+        return this.getPath(name, 'force-app/main/default/staticresources');
+    }
+
+    /**
+     * Helper method used by getContentAssetFilePath and getResourceFilePath
+     * @param {string} name
+     * @param {string} folder
+     * @returns {string}
+     */
+    getPath(name, folder) {
         const rootDir = path.resolve(process.env.ROOT_DIR ?? '');
-        const resourcePath = `force-app/main/default/staticresources/${resourceName}`;
-        const resourceFullPath = path.normalize(
-            path.resolve(rootDir, resourcePath)
-        );
-        const fileExtension = this.getFileExtension(resourceFullPath);
-        return `${resourcePath}${fileExtension}`;
+        const pathInFolder = path.join(folder, name);
+        const fullPath = path.normalize(path.resolve(rootDir, pathInFolder));
+        const fileExtension = this.getFileExtension(fullPath);
+        return `${pathInFolder}${fileExtension}`;
     }
 
     /**
@@ -110,7 +133,11 @@ export default class SalesforceResourceProvider {
     getFileExtension(filePath) {
         try {
             const files = fastGlob.sync(
-                [`${filePath}.*`, `!${filePath}.resource-meta.*`],
+                [
+                    `${filePath}.*`,
+                    `!${filePath}.resource-meta.*`,
+                    `!${filePath}.asset-meta.*`
+                ],
                 { onlyFiles: true }
             );
             if (files?.length > 0) {

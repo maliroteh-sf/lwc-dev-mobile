@@ -14,7 +14,7 @@ export let previewLogger: Logger | undefined;
 
 export class LwrServerUtils {
     public static DEFAULT_SERVER_PORT = 3000;
-    public static DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES = 15;
+    public static DEFAULT_SERVER_IDLE_TIMEOUT_MINUTES = 30;
 
     public static async startLwrServer(
         logger: Logger,
